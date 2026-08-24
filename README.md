@@ -6,8 +6,6 @@ Full-stack taxi bill generator with a React and Material UI frontend and an Expr
 
 - `frontend/`: Vite React bill form, invoice archive, earnings dashboard, receipt preview, PDF/image export, and WhatsApp sharing.
 - `backend/`: Express routes, Mongoose invoice model, calculations, time-series reporting, and TTL cleanup.
-- `render.yaml`: Render deployment definition for the API.
-- `vercel.json`: Vercel build configuration for the frontend.
 
 ## Local setup
 
