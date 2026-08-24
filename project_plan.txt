@@ -1,0 +1,144 @@
+Easy bill Project Plan
+=====================
+
+Last updated: 2026-08-23
+Status: Latest update complete; driver logo upload added
+
+Product
+-------
+Easy bill is a professional, simple React form for creating passenger transport bills.
+
+Completed
+---------
+- Scaffolded a Vite React app.
+- Added Material UI styling and responsive layout.
+- Added fields for passenger, driver, vehicle, pickup, drop, distance, fare, GST, and discount.
+- Added live receipt preview with calculated GST, discount, and total due.
+- Added Generate PDF using jsPDF and html2canvas.
+- Added Generate Image using html2canvas.
+- Added Share via WhatsApp using a pre-filled message.
+- Added success feedback after downloads.
+- Added Express API with POST /invoice and GET /invoice/:id.
+- Added Mongoose Invoice model connected to MongoDB Atlas through MONGODB_URI.
+- Added a 60-day MongoDB TTL index using the expiresAt field.
+- Added server-side GST and discount calculation utility.
+- Added request validation, not-found handling, invalid-id handling, and health check.
+- Added .env.example with secrets/configuration placeholders.
+- Restructured the repository into frontend/ and backend/ folders.
+- Added GET /reports with optional from/to date filters and aggregate totals.
+- Added Render backend configuration in render.yaml.
+- Verified frontend build, backend module loading, TTL schema, and clean Oxlint output after the folder restructure.
+- Added Chart.js dashboard with daily and monthly earnings charts.
+- Added dashboard KPI cards for total trips, total earnings, and average fare.
+- Added invoice archive view with passenger, date, total amount, date-range filters, and manual delete.
+- Added Save invoice action from the bill form to MongoDB.
+- Verified production build, clean lint, and invoice route registration after dashboard integration.
+- Added Vercel frontend deployment configuration in vercel.json.
+- Added compact invoice share tokens with POST /share/:id and GET /share/:token.
+- Added multi-origin CORS support using comma-separated CLIENT_ORIGIN values.
+- Added VITE_API_URL and VITE_PUBLIC_API_URL environment variable examples.
+- Improved sharing to use navigator.share() for PDF/image files on supported mobile browsers, with desktop download fallbacks.
+- Updated WhatsApp sharing to include generated compact invoice links.
+- Verified Vercel frontend build, clean Oxlint output, share-route registration, share-token schema, and touched-file diagnostics.
+- Fixed local environment loading by moving the configured MongoDB Atlas URL from .env.example into an ignored root .env file.
+- Sanitized .env.example and added .env/.env.* ignore rules to prevent credentials from being committed.
+- Added backend/.env and backend/.env.example with MONGO_URI, session/JWT secrets, runtime mode, and port settings.
+- Added frontend/.env, frontend/.env.example, and frontend/.env.production.example with local and Render API URLs.
+- Updated the backend to load backend/.env with dotenv and the frontend to accept REACT_APP_API_URL or VITE_API_URL.
+- Verified backend/.env key presence, MongoDB startup, frontend build, lint, and touched-file diagnostics.
+- Added backend/generateToken.js to create 24-hour JWTs from command-line key=value payload arguments.
+- Added the npm token shortcut and jsonwebtoken dependency.
+- Corrected the MongoDB Atlas URI placeholder in backend/.env.example.
+- Configured generateToken.js to suppress dotenv diagnostics so stdout contains only the JWT.
+- Verified JWT payload parsing, exact 24-hour expiry, lint, and diagnostics.
+- Added authenticated driver profile persistence with GET /profile, POST /profile/save, and DELETE /profile/clear.
+- Added JWT driver middleware requiring role=driver and driverId.
+- Added locked driver/vehicle fields with Edit, inline Save, Clear saved data, mount auto-fill, loading states, and Snackbar feedback.
+- Added unique driver profile and vehicle constraints.
+- Fixed React warnings by moving MUI Stack flex alignment values from unsupported DOM-forwarded props into sx styling.
+- Verified the warning fix with a production frontend build, Oxlint, and VS Code diagnostics.
+- Fixed misleading invoice-save errors by validating required fields client-side and displaying structured API 400 messages.
+- Verified the save-flow fix with a production frontend build, Oxlint, and VS Code diagnostics.
+- Fixed local API connection failures by allowing backend/.env PORT=5000 to override an inherited shell PORT.
+- Registered Chart.js Filler to support the daily earnings chart area fill without browser warnings.
+- Profile setup requires a generated driver JWT in frontend/.env as VITE_DRIVER_TOKEN; the UI reports this prerequisite through Snackbar.
+- Added a local 24-hour driver token to ignored frontend/.env so profile loading works immediately in development.
+- Verified authenticated GET /profile, frontend build, lint, and diagnostics; restarted Vite with the local token configuration.
+- Updated successful invoice save feedback to display the exact message "invoice saved" in the Snackbar popup.
+- Positioned the invoice save Snackbar at the top-right for mobile and desktop layouts.
+- Added a mobile hamburger button on the Easy bill logo with a side drawer for New bill, Invoices, and Dashboard access.
+- Hid the desktop tab navigation completely on mobile; mobile feature navigation now uses only the hamburger drawer.
+- Made responsive layouts explicit: hamburger is forcibly hidden at laptop/tablet widths and shown only at phone widths.
+- Fixed the mobile drawer aria-hidden focus warning by blurring the hamburger trigger before opening the drawer and adding drawer control attributes.
+- Hardened the mobile drawer focus handoff by blurring the active element and opening the MUI Drawer on the next animation frame so #root is not hidden while the hamburger retains focus.
+- Added View Invoice actions in the invoice archive, backed by authenticated GET /invoice/:id detail loading, modal loading/error states, full ride detail display, and modal PDF download.
+- Fixed the invoice archive View Invoice aria-hidden focus warning by releasing button focus before opening the MUI Dialog on the next animation frame.
+- Added structured invoice detail JSON with pickupLocation, dropLocation, paymentMode, totals, date fields, and optional GET /invoice/list passenger/date filtering.
+- Added driverId and paymentMode fields to invoices while preserving the 60-day MongoDB TTL expiration.
+- Reset invoice form fields after a successful save while retaining saved driver and vehicle details for the next trip.
+- Restored the local API process on port 5000 after browser connection-refused errors and verified /health.
+- Rebuilt the frontend bundle so the current Chart.js Filler registration is served.
+- Added driver-scoped UPI QR upload and storage using the authenticated /qr/save and /qr APIs.
+- Added mobile drawer Settings navigation with QR preview and Replace QR support.
+- Added Payment mode selector with conditional Show QR button and modal for UPI QR payments; Cash hides the QR action.
+- Fixed QR empty-state response to avoid a noisy 404 when no QR has been uploaded; Show QR now displays a clear empty-state message.
+- Fixed MUI Tabs invalid-value warning while the drawer-only Settings view is active.
+- Updated project plan with the latest mobile drawer focus/accessibility fix.
+- Fixed QR upload 413 errors by mounting the QR JSON parser before the global small JSON parser and raising its limit for base64-encoded 2 MB images.
+- Fixed QR dialog aria-hidden focus warning by releasing focus from the Show QR button before opening the modal.
+- Added driver-scoped logo upload, preview, update, and delete controls in Settings with PNG/JPG/SVG validation and receipt header rendering for PDF/image exports.
+
+Current files
+-------------
+- frontend/src/App.jsx: form state, calculations, receipt preview, export/share actions.
+- frontend/src/App.css: responsive visual design and receipt styles.
+- frontend/src/index.css: global page reset/background.
+- frontend/vite.config.js: frontend-root Vite configuration.
+- package.json: React, Material UI, jsPDF, and html2canvas dependencies.
+- backend/index.js: Express app, MongoDB connection, middleware, and startup.
+- backend/routes/invoice.js: invoice persistence and retrieval routes.
+- backend/routes/reports.js: report aggregation endpoint.
+- backend/models/Invoice.js: invoice schema and TTL expiration.
+- backend/utils/invoiceCalculations.js: GST, discount, and total calculations.
+- backend/generateToken.js: 24-hour JWT generation from CLI payload arguments.
+- backend/middleware/requireDriver.js: JWT authentication for driver-only profile routes.
+- backend/models/DriverProfile.js: persisted driver name and unique vehicle profile.
+- backend/routes/profile.js: authenticated profile load, save, and clear endpoints.
+- render.yaml: Render web service definition for the backend.
+- vercel.json: Vercel build configuration for the frontend.
+- backend/.env.example: backend environment template.
+- frontend/.env.example: local frontend environment template.
+- frontend/.env.production.example: production frontend environment template.
+- backend/routes/share.js: compact invoice-link creation and lookup.
+
+Run and verify
+--------------
+- npm run dev: start local development server.
+- npm run build: create a production build.
+- npm run lint: run Oxlint.
+- npm run server: start the API after creating .env from .env.example.
+- npm run server:watch: start the API with Node watch mode.
+- npm run token -- driverId=123 role=driver: print a 24-hour JWT.
+- npm run dev: start the frontend from frontend/.
+
+API contract
+------------
+- POST /invoice accepts passengerName, driverName, vehicleNumber, pickup, drop, distance, fare, gst, and discount.
+- POST /invoice responds with 201 and the saved invoice including totals and expiresAt.
+- GET /invoice/:id returns the saved invoice or 404 when it does not exist.
+- GET /invoice returns all invoices, sorted newest first, with optional from and to date filters.
+- DELETE /invoice/:id manually removes an invoice; MongoDB TTL remains the automatic cleanup path.
+- GET /reports returns aggregate invoice totals; add from and to query parameters for a date range.
+- GET /reports also returns daily, weekly, and monthly earnings series for Chart.js.
+- POST /share/:id creates or reuses a short invoice share token.
+- GET /share/:token retrieves an invoice from its short share token.
+- GET /profile fetches the authenticated driver's saved details.
+- POST /profile/save saves or updates the authenticated driver's details.
+- DELETE /profile/clear removes the authenticated driver's saved details.
+- MongoDB Atlas credentials are never committed; MONGODB_URI is loaded from .env.
+
+Next possible improvements
+--------------------------
+- Add persistent bill history or local storage.
+- Add configurable business name, logo, tax rules, and bill number.
+- Add automated browser tests for form entry and exports.

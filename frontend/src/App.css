@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+.app-shell { min-height: 100vh; color: #17313a; background: radial-gradient(circle at 8% 0%, #e5f2ef 0, transparent 31%), #f5f7f6; }
+.page-container { padding-top: 28px; padding-bottom: 28px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 28px; border-bottom: 1px solid #dce7e4; }
+.mobile-menu-button { display: none; color: #fff; background: #176b87; border-radius: 10px; }
+.mobile-menu-button:hover { background: #125b73; }
+.drawer-content { width: min(78vw, 300px); padding: 28px 20px; color: #17313a; }
+.drawer-kicker { color: #d97745; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; }.drawer-title { margin: 6px 0 18px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; }
+.main-tabs { margin: 22px 0 4px; border-bottom: 1px solid #dce7e4; }
+.main-tabs .MuiTab-root { min-height: 42px; color: #71868a; text-transform: none; font-weight: 700; }
+.main-tabs .Mui-selected { color: #176b87; }
+.brand-mark { display: grid; place-items: center; width: 40px; height: 40px; color: #fff; background: #176b87; border-radius: 10px; }
+.eyebrow, .section-kicker, .receipt-label, .receipt-meta { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #6b878c; }
+.brand-name, .receipt-title, .intro h1, .panel-title { font-family: 'Space Grotesk', sans-serif; }
+.brand-name { font-weight: 700; line-height: 1; }
+.header-note, .intro-copy, .panel-subtitle { color: #71868a; font-size: 13px; }
+.intro { padding: 56px 0 36px; }.compact-intro { padding-bottom: 28px; }
+.section-kicker span, .footer-note span { color: #d97745; margin: 0 4px; }
+.intro h1 { margin: 9px 0 8px; color: #17313a; font-size: clamp(2.2rem, 5vw, 4rem); letter-spacing: -1.5px; line-height: 1.05; }
+.workspace { align-items: flex-start; }
+.form-panel { padding: 28px; border: 1px solid #dde8e5; background: rgba(255,255,255,.84); }
+.panel-title { font-size: 20px; font-weight: 600; }
+.panel-subtitle { margin-top: 3px; }
+.form-panel .MuiTextField-root { background: #fbfcfc; }
+.form-panel .MuiOutlinedInput-root { border-radius: 8px; }
+.action-row { padding-top: 4px; }
+.action-row .MuiButton-root { min-height: 44px; text-transform: none; font-weight: 700; border-radius: 7px; }
+.whatsapp-button { color: #218c61; border-color: #9ccdb6; }
+.preview-wrap { padding-top: 4px; }
+.preview-heading { padding: 0 2px 12px; color: #176b87; }
+.receipt { padding: 28px; color: #24434b; border: 1px solid #d8e7e1; box-shadow: 0 12px 32px rgba(35, 78, 78, .08); }
+.receipt-brand { align-items: center; min-width: 0; gap: 14px; }
+.receipt-logo { flex: 0 0 auto; width: 64px; height: 64px; object-fit: contain; border-radius: 8px; }
+.default-receipt-logo { display: grid; place-items: center; color: #fff; background: #176b87; }
+.receipt-label { color: #d97745; }
+.receipt-title { margin-top: 3px; font-size: 23px; font-weight: 600; }
+.receipt-number { padding: 5px 8px; color: #176b87; background: #e9f4f1; border-radius: 5px; font: 700 10px 'DM Sans', sans-serif; letter-spacing: 1px; }
+.receipt-divider { margin: 22px 0; border-color: #e5edeb; }
+.route { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 4px 0 10px; }
+.route-end { text-align: right; }.route-arrow { color: #d97745; font-size: 24px; }.receipt-meta { margin-bottom: 4px; }.receipt-value { overflow-wrap: anywhere; font-size: 13px; font-weight: 600; }
+.receipt-info { margin-top: 12px; row-gap: 15px; }
+.price-lines { color: #688086; font-size: 13px; }.discount-line { color: #d97745; }
+.total-line { display: flex; justify-content: space-between; align-items: baseline; margin-top: 22px; padding-top: 18px; border-top: 1px solid #d8e7e1; font-size: 15px; font-weight: 700; }.total-amount { color: #176b87; font: 700 28px 'Space Grotesk', sans-serif; }
+.receipt-foot { margin-top: 28px; color: #91a3a5; text-align: center; font-size: 11px; }
+.footer-note { padding: 48px 0 0; color: #8ba0a2; text-align: center; font-size: 11px; letter-spacing: .4px; }
+.app-notice { top: 16px; right: 16px; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 520px)); gap: 20px; align-items: start; }
+.settings-panel { max-width: 520px; padding: 28px; border: 1px solid #dde8e5; background: rgba(255,255,255,.84); }.qr-preview { display: block; width: min(100%, 240px); max-height: 240px; object-fit: contain; padding: 12px; border: 1px solid #d8e7e1; border-radius: 8px; }.logo-preview { display: grid; place-items: center; width: min(100%, 240px); height: 140px; object-fit: contain; padding: 12px; border: 1px solid #d8e7e1; border-radius: 8px; background: #fbfcfc; }.default-logo-preview { gap: 6px; color: #176b87; font-weight: 700; }.qr-modal-image-wrap { display: grid; place-items: center; min-height: 280px; }.qr-modal-image { width: min(100%, 320px); max-height: 420px; object-fit: contain; }
+.saved-invoice-summary .receipt-value { overflow-wrap: anywhere; }
+.saved-invoice-summary .total-line { font-size: 18px; }
+.saved-invoice-summary .total-amount { font-size: 28px; }
+.filter-bar { align-items: center; margin-bottom: 20px; }.filter-bar .MuiTextField-root { width: 170px; background: #fff; }.filter-bar .MuiButton-root { min-height: 56px; text-transform: none; font-weight: 700; }
+.table-panel, .chart-panel, .metric-card { border: 1px solid #dde8e5; background: rgba(255,255,255,.84); }.table-panel { padding: 22px; }.invoice-table { overflow-x: auto; }.table-row { display: grid; grid-template-columns: 1.25fr .9fr .9fr 230px; align-items: center; min-width: 760px; padding: 14px 8px; border-bottom: 1px solid #e9efed; color: #557176; font-size: 14px; }.table-row:last-child { border-bottom: 0; }.table-header { color: #789095; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }.table-total { color: #176b87; font-weight: 700; }.table-actions { justify-self: start; }.table-row .MuiButton-root { justify-self: start; text-transform: none; }.empty-state { padding: 36px 8px; color: #819396; text-align: center; }
+.invoice-detail { padding: 4px; color: #24434b; background: #fff; }.invoice-detail-header { gap: 16px; }.invoice-detail-total { overflow-wrap: anywhere; color: #176b87; font: 700 20px 'Space Grotesk', sans-serif; }
+.metric-grid { margin-bottom: 24px; }.metric-card { padding: 20px 22px; }.metric-label { color: #71868a; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }.metric-value { margin-top: 8px; color: #176b87; font: 700 27px 'Space Grotesk', sans-serif; }.chart-panel { padding: 22px; }.chart-box { height: 260px; margin-top: 18px; }
+@media (min-width: 601px) { .mobile-menu-button { display: none !important; } }
+@media (max-width: 600px) { .page-container { padding-top: 18px; }.header-note { display: none; }.desktop-brand-mark { display: none; }.desktop-tabs { display: none !important; }.mobile-menu-button { display: inline-flex; }.intro { padding: 42px 0 28px; }.form-panel, .receipt, .table-panel, .chart-panel, .settings-panel { padding: 20px; }.settings-grid { grid-template-columns: 1fr; }.receipt-brand { gap: 12px; }.receipt-logo { width: 52px; height: 52px; }.action-row .MuiButton-root { width: 100%; }.route { gap: 7px; }.filter-bar .MuiTextField-root, .filter-bar .MuiButton-root { width: 100%; }.chart-box { height: 220px; }.app-notice { top: 8px; right: 8px; left: 8px; }.app-notice .MuiAlert-root { width: 100%; box-sizing: border-box; } }
