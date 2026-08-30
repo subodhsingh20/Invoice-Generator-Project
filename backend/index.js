@@ -15,7 +15,10 @@ import qrRoutes from './routes/qr.js'
 const app = express()
 const port = Number(process.env.PORT) || 5000
 const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI
-const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',').map((origin) => origin.trim()).filter(Boolean)
+const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean)
 
 app.disable('x-powered-by')
 app.set('trust proxy', 1)
@@ -28,7 +31,14 @@ app.use((request, response, next) => {
   next()
 })
 
-app.use(cors({ origin: (origin, callback) => { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error('Origin not allowed by CORS')) } }))
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true)
+    const normalizedOrigin = origin.replace(/\/+$/, '')
+    if (allowedOrigins.includes(normalizedOrigin)) return callback(null, true)
+    return callback(new Error('Origin not allowed by CORS'))
+  },
+}))
 app.use('/auth', express.json({ limit: '50kb' }), authRoutes)
 app.use('/qr', express.json({ limit: '3mb' }), qrRoutes)
 app.use('/profile', express.json({ limit: '3mb' }), profileRoutes)

@@ -62,11 +62,15 @@ const SavedInvoiceModal = lazy(() =>
 
 const PASSENGER_FIELDS = [["passengerName", "Passenger name"]];
 
-const API_URL =
+const trimTrailingSlash = (value) => String(value || "").replace(/\/+$/, "");
+const API_URL = trimTrailingSlash(
   import.meta.env.REACT_APP_API_URL ||
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000";
-const PUBLIC_API_URL = import.meta.env.VITE_PUBLIC_API_URL || API_URL;
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:5000",
+);
+const PUBLIC_API_URL = trimTrailingSlash(
+  import.meta.env.VITE_PUBLIC_API_URL || API_URL,
+);
 const AUTH_TOKEN_KEY = "easybill_driver_token";
 const AUTH_DRIVER_KEY = "easybill_driver_profile";
 const initialForm = {
