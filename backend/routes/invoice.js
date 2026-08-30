@@ -1,4 +1,4 @@
-import { Router } from 'express'
+﻿import { Router } from 'express'
 import PDFDocument from 'pdfkit'
 import Invoice from '../models/Invoice.js'
 import { calculateInvoiceTotals } from '../utils/invoiceCalculations.js'
@@ -11,7 +11,7 @@ router.get('/:id/pdf', requireDriver, async (request, response) => {
   try {
     const invoice = await Invoice.findById(request.params.id)
     if (!invoice) return response.status(404).json({ error: 'Invoice not found' })
-    if (invoice.driverId && invoice.driverId !== String(request.driver.driverId)) {
+    if (invoice.driverId && invoice.driverId !== String(request.user.driverId)) {
       return response.status(403).json({ error: 'You do not have access to this invoice' })
     }
 
@@ -32,7 +32,7 @@ router.get('/:id/pdf', requireDriver, async (request, response) => {
     doc.text(`Payment: ${invoice.paymentMode || 'Cash'}`)
     doc.moveDown(0.5)
     const total = Number(invoice.totals?.total || 0)
-    doc.fontSize(16).text(`Total: ₹${total.toFixed(2)}`, { align: 'right' })
+    doc.fontSize(16).text(`Total: ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total)}`, { align: 'right' })
     doc.end()
   } catch (error) {
     if (error.name === 'CastError') return response.status(400).json({ error: 'Invalid invoice id' })
@@ -40,10 +40,9 @@ router.get('/:id/pdf', requireDriver, async (request, response) => {
   }
 })
 
-router.get('/', async (request, response) => {
-
+router.get('/', requireDriver, async (request, response) => {
   try {
-    const filter = buildListFilter(request.query)
+    const filter = buildListFilter(request.query, request.user.driverId)
     const invoices = await Invoice.find(filter).sort({ createdAt: -1 })
     return response.json(invoices)
   } catch (error) {
@@ -52,9 +51,9 @@ router.get('/', async (request, response) => {
   }
 })
 
-router.get('/list', async (request, response) => {
+router.get('/list', requireDriver, async (request, response) => {
   try {
-    const filter = buildListFilter(request.query)
+    const filter = buildListFilter(request.query, request.user.driverId)
     const invoices = await Invoice.find(filter).sort({ createdAt: -1 })
     return response.json(invoices)
   } catch (error) {
@@ -67,7 +66,7 @@ router.get('/:id', requireDriver, async (request, response) => {
   try {
     const invoice = await Invoice.findById(request.params.id)
     if (!invoice) return response.status(404).json({ error: 'Invoice not found' })
-    if (invoice.driverId && invoice.driverId !== String(request.driver.driverId)) {
+    if (invoice.driverId && invoice.driverId !== String(request.user.driverId)) {
       return response.status(403).json({ error: 'You do not have access to this invoice' })
     }
     return response.json(formatInvoice(invoice))
@@ -87,7 +86,7 @@ router.post('/', requireDriver, async (request, response) => {
     const totals = calculateInvoiceTotals(request.body)
     const invoice = await Invoice.create({
       ...request.body,
-      driverId: String(request.driver.driverId),
+      driverId: String(request.user.driverId),
       paymentMode: request.body.paymentMode || 'Cash',
       totals,
     })
@@ -104,7 +103,7 @@ router.delete('/:id', requireDriver, async (request, response) => {
   try {
     const invoice = await Invoice.findById(request.params.id)
     if (!invoice) return response.status(404).json({ error: 'Invoice not found' })
-    if (invoice.driverId && invoice.driverId !== String(request.driver.driverId)) {
+    if (invoice.driverId && invoice.driverId !== String(request.user.driverId)) {
       return response.status(403).json({ error: 'You do not have access to this invoice' })
     }
     await invoice.deleteOne()
@@ -115,8 +114,8 @@ router.delete('/:id', requireDriver, async (request, response) => {
   }
 })
 
-function buildListFilter({ from, to, passenger }) {
-  const filter = {}
+function buildListFilter({ from, to, passenger }, driverId) {
+  const filter = { driverId: String(driverId) }
   const createdAt = {}
   if (from) {
     const start = parseDate(from, 'Invalid from date')

@@ -27,4 +27,7 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+invoiceSchema.index({ driverId: 1, createdAt: -1 })
+invoiceSchema.index({ driverId: 1, passengerName: 1 })
+
 export default mongoose.model('Invoice', invoiceSchema)

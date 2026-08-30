@@ -5,18 +5,17 @@ import requireDriver from '../middleware/requireDriver.js'
 const router = Router()
 const allowedLogoMimeTypes = new Set(['image/png', 'image/jpeg', 'image/svg+xml'])
 const maxLogoSize = 2 * 1024 * 1024
-router.use(requireDriver)
 
-router.get('/', async (request, response) => {
+router.get('/', requireDriver, async (request, response) => {
   try {
-    const profile = await DriverProfile.findOne({ driverId: String(request.driver.driverId) }).select('driverName vehicleNumber logoData logoMimeType logoSize updatedAt')
+    const profile = await DriverProfile.findOne({ driverId: String(request.user.driverId) }).select('driverName vehicleNumber logoData logoMimeType logoSize updatedAt')
     return response.json(profile || { driverName: '', vehicleNumber: '', logoData: '', logoMimeType: '', logoSize: 0 })
   } catch {
     return response.status(500).json({ error: 'Unable to load saved driver data' })
   }
 })
 
-router.post('/logo', async (request, response) => {
+router.post('/logo', requireDriver, async (request, response) => {
   const { logoData, logoMimeType, logoSize } = request.body
   if (!logoData || !logoMimeType || !logoSize) {
     return response.status(400).json({ error: 'Logo image, file type, and size are required' })
@@ -33,7 +32,7 @@ router.post('/logo', async (request, response) => {
 
   try {
     const profile = await DriverProfile.findOneAndUpdate(
-      { driverId: String(request.driver.driverId) },
+      { driverId: String(request.user.driverId) },
       {
         $set: {
           logoData,
@@ -41,12 +40,12 @@ router.post('/logo', async (request, response) => {
           logoSize: Number(logoSize),
         },
         $setOnInsert: {
-          driverId: String(request.driver.driverId),
+          driverId: String(request.user.driverId),
           driverName: 'Driver',
-          vehicleNumber: `DRIVER-${String(request.driver.driverId).toUpperCase()}`,
+          vehicleNumber: `DRIVER-${String(request.user.driverId).toUpperCase()}`,
         },
       },
-      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+      { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true },
     ).select('logoData logoMimeType logoSize updatedAt')
     return response.json({ message: 'Logo saved', logo: formatLogo(profile) })
   } catch (error) {
@@ -55,12 +54,12 @@ router.post('/logo', async (request, response) => {
   }
 })
 
-router.delete('/logo', async (request, response) => {
+router.delete('/logo', requireDriver, async (request, response) => {
   try {
     const profile = await DriverProfile.findOneAndUpdate(
-      { driverId: String(request.driver.driverId) },
+      { driverId: String(request.user.driverId) },
       { logoData: '', logoMimeType: '', logoSize: 0 },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     ).select('logoData logoMimeType logoSize updatedAt')
     if (!profile) return response.status(404).json({ error: 'Driver profile not found' })
     return response.json({ message: 'Logo deleted', logo: formatLogo(profile) })
@@ -69,16 +68,16 @@ router.delete('/logo', async (request, response) => {
   }
 })
 
-router.post('/save', async (request, response) => {
+router.post('/save', requireDriver, async (request, response) => {
   const driverName = String(request.body.driverName || '').trim()
   const vehicleNumber = String(request.body.vehicleNumber || '').trim().toUpperCase()
   if (!driverName || !vehicleNumber) return response.status(400).json({ error: 'Driver name and vehicle number are required' })
 
   try {
     const profile = await DriverProfile.findOneAndUpdate(
-      { driverId: String(request.driver.driverId) },
-      { driverId: String(request.driver.driverId), driverName, vehicleNumber },
-      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+      { driverId: String(request.user.driverId) },
+      { driverId: String(request.user.driverId), driverName, vehicleNumber },
+      { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true },
     ).select('driverName vehicleNumber')
     return response.json({ message: 'Saved successfully', profile })
   } catch (error) {
@@ -88,9 +87,9 @@ router.post('/save', async (request, response) => {
   }
 })
 
-router.delete('/clear', async (request, response) => {
+router.delete('/clear', requireDriver, async (request, response) => {
   try {
-    await DriverProfile.findOneAndDelete({ driverId: String(request.driver.driverId) })
+    await DriverProfile.findOneAndDelete({ driverId: String(request.user.driverId) })
     return response.json({ message: 'Saved driver data cleared' })
   } catch {
     return response.status(500).json({ error: 'Unable to clear saved driver data' })

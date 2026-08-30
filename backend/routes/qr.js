@@ -8,7 +8,7 @@ const maxQrSize = 2 * 1024 * 1024
 
 router.get('/', requireDriver, async (request, response) => {
   try {
-    const qr = await DriverQr.findOne({ driverId: String(request.driver.driverId) })
+    const qr = await DriverQr.findOne({ driverId: String(request.user.driverId) })
     if (!qr) return response.json({ imageData: null, mimeType: null, size: 0, updatedAt: null, exists: false })
     return response.json(formatQr(qr))
   } catch {
@@ -33,14 +33,14 @@ router.post('/save', requireDriver, async (request, response) => {
     }
 
     const qr = await DriverQr.findOneAndUpdate(
-      { driverId: String(request.driver.driverId) },
+      { driverId: String(request.user.driverId) },
       {
-        driverId: String(request.driver.driverId),
+        driverId: String(request.user.driverId),
         imageData,
         mimeType,
         size: Number(size),
       },
-      { new: true, upsert: true, runValidators: true },
+      { returnDocument: 'after', upsert: true, runValidators: true },
     )
     return response.json({ message: 'QR code saved', qr: formatQr(qr) })
   } catch (error) {

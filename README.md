@@ -64,6 +64,17 @@ npm run token -- driverId=driver-123 role=driver
 
 Put the generated token in `frontend/.env` as `VITE_DRIVER_TOKEN`. Driver profiles are scoped to the JWT `driverId`; vehicle numbers are unique across profiles.
 
+## Backfill old invoices
+
+If you have older invoices with a missing `driverId`, run the backfill helper. It first performs a dry run and only writes changes when you pass `--apply`:
+
+```powershell
+npm run backfill:invoice-driver-ids
+npm run backfill:invoice-driver-ids -- --apply
+```
+
+The script matches invoices to drivers by exact `vehicleNumber`, which is the safest stable key already stored on the invoice.
+
 ## Validation
 
 ```powershell
