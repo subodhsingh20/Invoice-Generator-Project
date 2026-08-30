@@ -14,6 +14,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import DeleteOutlineOutlined from "@mui/icons-material/DeleteOutlineOutlined";
+import IosShareOutlined from "@mui/icons-material/IosShareOutlined";
 import PictureAsPdfOutlined from "@mui/icons-material/PictureAsPdfOutlined";
 import Search from "@mui/icons-material/Search";
 import PageIntro from "./PageIntro.jsx";
@@ -32,6 +33,7 @@ function InvoiceList({
   invoiceError,
   closeInvoiceDialog,
   downloadInvoicePdf,
+  shareInvoicePdf,
   invoiceDetailRef,
   logo,
 }) {
@@ -121,6 +123,7 @@ function InvoiceList({
         error={invoiceError}
         onClose={closeInvoiceDialog}
         onDownloadPdf={downloadInvoicePdf}
+        onSharePdf={shareInvoicePdf}
         invoiceDetailRef={invoiceDetailRef}
         logo={logo}
       />
@@ -133,6 +136,7 @@ function InvoiceDialog({
   error,
   onClose,
   onDownloadPdf,
+  onSharePdf,
   invoiceDetailRef,
   logo,
 }) {
@@ -180,15 +184,36 @@ function InvoiceDialog({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-        <Button
-          variant="contained"
-          startIcon={<PictureAsPdfOutlined />}
-          onClick={onDownloadPdf}
-          disabled={!invoice || loading}
+        <Stack
+          direction={{ xs: "column-reverse", sm: "row" }}
+          spacing={1}
+          sx={{ width: "100%" }}
+          className="invoice-detail-actions"
         >
-          Download PDF
-        </Button>
+          <Button onClick={onClose} fullWidth={false} sx={{ flex: { xs: 1, sm: "0 0 auto" } }}>
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PictureAsPdfOutlined />}
+            onClick={onDownloadPdf}
+            disabled={!invoice || loading}
+            fullWidth
+            sx={{ flex: { sm: "1 1 auto" } }}
+          >
+            Download PDF
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<IosShareOutlined />}
+            onClick={onSharePdf}
+            disabled={!invoice || loading}
+            fullWidth
+            sx={{ flex: { sm: "1 1 auto" } }}
+          >
+            Share PDF
+          </Button>
+        </Stack>
       </DialogActions>
     </Dialog>
   );

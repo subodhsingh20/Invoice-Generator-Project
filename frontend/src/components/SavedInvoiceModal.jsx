@@ -52,7 +52,7 @@ export default function SavedInvoiceModal({
                 Invoice saved successfully!
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Your receipt is ready. You can share it as PDF or text from the buttons below.
+                Your receipt is ready. You can share it as a PDF or send the ride details as text.
               </Typography>
             </Box>
             <Box>
@@ -110,13 +110,35 @@ export default function SavedInvoiceModal({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-        <Button variant="contained" startIcon={<PictureAsPdfOutlined />} onClick={onDownloadPdf}>
-          Save PDF
-        </Button>
-        <Button className="whatsapp-button" variant="outlined" startIcon={<WhatsApp />} onClick={onWhatsApp}>
-          Share via WhatsApp
-        </Button>
+        <Stack
+          direction={{ xs: "column-reverse", sm: "row" }}
+          spacing={1}
+          sx={{ width: "100%" }}
+          className="saved-invoice-actions"
+        >
+          <Button onClick={onClose} sx={{ flex: { sm: "0 0 auto" } }}>
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PictureAsPdfOutlined />}
+            onClick={onDownloadPdf}
+            fullWidth
+            sx={{ flex: { sm: "1 1 auto" } }}
+          >
+            Share PDF
+          </Button>
+          <Button
+            className="whatsapp-button"
+            variant="outlined"
+            startIcon={<WhatsApp />}
+            onClick={onWhatsApp}
+            fullWidth
+            sx={{ flex: { sm: "1 1 auto" } }}
+          >
+            Share via WhatsApp
+          </Button>
+        </Stack>
       </DialogActions>
     </Dialog>
   );

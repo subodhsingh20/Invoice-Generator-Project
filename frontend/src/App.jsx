@@ -68,9 +68,6 @@ const API_URL = trimTrailingSlash(
     import.meta.env.VITE_API_URL ||
     "http://localhost:5000",
 );
-const PUBLIC_API_URL = trimTrailingSlash(
-  import.meta.env.VITE_PUBLIC_API_URL || API_URL,
-);
 const AUTH_TOKEN_KEY = "easybill_driver_token";
 const AUTH_DRIVER_KEY = "easybill_driver_profile";
 const initialForm = {
@@ -356,22 +353,6 @@ function App() {
     }
   };
   const ensureSavedInvoice = async () => savedInvoice || saveInvoice();
-  const createShareLink = async () => {
-    const invoice = await ensureSavedInvoice();
-    if (!invoice) return null;
-    try {
-      const result = await fetch(`${API_URL}/share/${invoice._id}`, {
-        method: "POST",
-        headers: driverHeaders(),
-      });
-      if (!result.ok) throw new Error();
-      const data = await result.json();
-      return `${PUBLIC_API_URL}${data.path}`;
-    } catch {
-      setNotice("Unable to create invoice link");
-      return null;
-    }
-  };
   const deleteInvoice = async (id) => {
     try {
       const result = await fetch(`${API_URL}/invoice/${id}`, {
@@ -447,6 +428,44 @@ function App() {
     pdf.save(`easy-bill-${selectedInvoice.passengerName || "invoice"}.pdf`);
     setNotice("PDF downloaded successfully");
   };
+  const shareInvoicePdf = useCallback(async () => {
+    if (!invoiceDetailRef.current || !selectedInvoice) return;
+    const { html2canvas, jsPDF } = await loadPdfLibs();
+    const canvas = await html2canvas(invoiceDetailRef.current, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+    });
+    const pdf = new jsPDF({
+      unit: "px",
+      format: [canvas.width / 2, canvas.height / 2],
+    });
+    pdf.addImage(
+      canvas.toDataURL("image/png"),
+      "PNG",
+      0,
+      0,
+      canvas.width / 2,
+      canvas.height / 2,
+    );
+    const blob = pdf.output("blob");
+    const filename = `easy-bill-${selectedInvoice.passengerName || "invoice"}.pdf`;
+    const file = new File([blob], filename, { type: "application/pdf" });
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: "Aura Men Billing Service Portal",
+          text: "Journey invoice PDF",
+          files: [file],
+        });
+        setNotice("PDF shared successfully");
+        return;
+      } catch (error) {
+        if (error.name === "AbortError") return;
+      }
+    }
+    pdf.save(filename);
+    setNotice("PDF downloaded successfully");
+  }, [invoiceDetailRef, selectedInvoice]);
   const loadQr = useCallback(async ({ silent = false } = {}) => {
     setQrLoading(true);
     try {
@@ -618,14 +637,13 @@ function App() {
     const filename = `easy-bill-${form.passengerName || "receipt"}.pdf`;
     if (!(await shareFile(pdf.output("blob"), filename, "PDF invoice"))) {
       pdf.save(filename);
-      setNotice("PDF downloaded successfully");
+      setNotice("PDF saved successfully");
     }
   };
   const handleWhatsApp = async () => {
-    const link = await createShareLink();
-    if (!link) return;
+    const text = buildShareText();
     window.open(
-      `https://wa.me/?text=${encodeURIComponent(`Ride bill for ${form.passengerName || "Passenger"}\n${form.pickup || "Pickup"} to ${form.drop || "Drop"}\nTotal: ${money(totals.total)}\nInvoice: ${link}`)}`,
+      `https://wa.me/?text=${encodeURIComponent(text)}`,
       "_blank",
       "noopener,noreferrer",
     );
@@ -916,6 +934,7 @@ function App() {
                 invoiceError={invoiceError}
                 closeInvoiceDialog={closeInvoiceDialog}
                 downloadInvoicePdf={downloadInvoicePdf}
+                shareInvoicePdf={shareInvoicePdf}
                 invoiceDetailRef={invoiceDetailRef}
                 logo={logo}
               />
