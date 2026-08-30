@@ -46,7 +46,7 @@ app.use(express.json({ limit: '50kb' }))
 app.get('/', (request, response) => {
   response.json({ status: 'ok', service: 'invoice-api' })
 })
-app.get('/health', (request, response) => response.json({ status: 'ok' }))
+app.get('/health', (request, response) => response.status(200).send('OK'))
 app.use('/invoice', invoiceRoutes)
 app.use('/reports', reportRoutes)
 app.use('/share', shareRoutes)

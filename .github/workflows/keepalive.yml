@@ -1,0 +1,25 @@
+name: Keep Backend Alive
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping backend health route
+        run: |
+          for i in {1..3}; do
+            if curl -fsS https://invoice-generator-project-p8s5.onrender.com/health; then
+              echo "Ping successful at $(date)"
+              exit 0
+            else
+              echo "Ping failed at $(date), retry $i"
+              sleep 10
+            fi
+          done
+          echo "All retries failed at $(date)"
+          exit 1
