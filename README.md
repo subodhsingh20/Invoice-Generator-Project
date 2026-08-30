@@ -1,13 +1,20 @@
-# Easy bill
+# Easy Bill
 
 Full-stack taxi bill generator with a React and Material UI frontend and an Express/MongoDB Atlas API.
+
+## Stack
+
+- Frontend: React 19, Vite, Material UI, Chart.js, html2canvas, jsPDF
+- Backend: Node.js, Express 5, Mongoose, JSON Web Tokens, CORS
+- Database: MongoDB Atlas
+- Hosting: Render for the backend, Netlify for the frontend
 
 ## Structure
 
 - `frontend/`: Vite React bill form, invoice archive, earnings dashboard, receipt preview, PDF/image export, and WhatsApp sharing.
-- `backend/`: Express routes, Mongoose invoice model, calculations, time-series reporting, and TTL cleanup.
+- `backend/`: Express routes, Mongoose invoice model, calculations, time-series reporting, profile storage, and TTL cleanup.
 
-## Local setup
+## Local Setup
 
 ```powershell
 npm install
@@ -15,56 +22,121 @@ Copy-Item backend/.env.example backend/.env
 Copy-Item frontend/.env.example frontend/.env
 ```
 
-Set `MONGO_URI` in `backend/.env` to your MongoDB Atlas connection string. Keep real credentials only in local `.env` files; the example files are safe templates.
+Set these values in `backend/.env`:
 
-For production frontend builds, copy `frontend/.env.production.example` to `frontend/.env.production` and replace the Render API placeholder.
+- `MONGO_URI` - your MongoDB Atlas connection string
+- `JWT_SECRET` - a long random secret used to sign driver tokens
+- `CLIENT_ORIGIN` - `http://localhost:5173` for local development
+- `NODE_ENV` - `development`
 
-The server loads `.env` from the repository root. Keep real credentials only in `.env`; `.env.example` is a safe template.
+The backend reads `backend/.env`. It does not use a root-level `.env` file.
+
+For local frontend development, set `frontend/.env` like this:
+
+```env
+VITE_API_URL=http://localhost:5000
+VITE_PUBLIC_API_URL=http://localhost:5000
+```
+
+Then run:
 
 ```powershell
 npm run dev
 npm run server
 ```
 
-The frontend runs on `http://localhost:5173` and the API on `http://localhost:5000`.
+The frontend runs on `http://localhost:5173` and the API runs on `http://localhost:5000`.
 
-## Generate a JWT
+## Production Deployment
 
-Pass payload properties as `key=value` arguments. The token is signed with `JWT_SECRET` from `backend/.env` and expires after 24 hours:
+### Render backend
+
+Use the repository root as the project source and set:
+
+- Build command: `npm install`
+- Start command: `npm run server`
+
+Set these Render environment variables:
+
+```env
+MONGO_URI=<your_mongo_connection_string>
+JWT_SECRET=<your_jwt_secret>
+CLIENT_ORIGIN=https://invoice-generator-auramen.netlify.app
+NODE_ENV=production
+```
+
+If you want to allow local development and the deployed frontend at the same time, use:
+
+```env
+CLIENT_ORIGIN=http://localhost:5173,https://invoice-generator-auramen.netlify.app
+```
+
+### Netlify frontend
+
+Use the repository root as the project source and set:
+
+- Build command: `npm run build`
+- Publish directory: `frontend/dist`
+
+Set these Netlify environment variables:
+
+```env
+VITE_API_URL=https://invoice-generator-project-p8s5.onrender.com
+VITE_PUBLIC_API_URL=https://invoice-generator-project-p8s5.onrender.com
+```
+
+Do not use `localhost` in production frontend env values.
+
+## Health Check and Keep-Alive
+
+The backend exposes:
+
+- `GET /health` - returns `200 OK`
+
+A GitHub Actions workflow pings the backend every 5 minutes to reduce Render sleep time:
+
+- Workflow file: [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml)
+- GitHub secret required: `BACKEND_URL`
+- Secret value: `https://invoice-generator-project-p8s5.onrender.com`
+
+## Generate a Driver JWT
+
+Driver authentication uses JWTs signed with `JWT_SECRET`.
+
+Generate a token with:
 
 ```powershell
 npm run token -- driverId=123 role=driver
 ```
 
+The returned token can be used in `Authorization: Bearer <token>` requests.
+
 ## API
 
-- `POST /invoice`: create and persist an invoice. Required fields are `passengerName`, `driverName`, `vehicleNumber`, `pickup`, `drop`, `distance`, and `fare`; `gst` and `discount` are percentages.
-- `GET /invoice/:id`: fetch one invoice.
-- `GET /invoice`: list invoices, newest first. Optional query parameters: `from` and `to` ISO dates.
-- `DELETE /invoice/:id`: manually delete an invoice.
-- `GET /reports`: return invoice count, aggregate totals, and daily/weekly/monthly earnings series. Optional query parameters: `from` and `to` ISO dates.
-- `POST /share/:id`: create or reuse a compact share token for an invoice.
-- `GET /share/:token`: fetch an invoice using its compact share token.
-- `GET /health`: service health check.
-- `GET /profile`: fetch authenticated driver's saved name and vehicle.
-- `POST /profile/save`: save or update authenticated driver's name and vehicle.
-- `DELETE /profile/clear`: clear authenticated driver's saved profile.
+- `POST /auth/signup`: create a driver account
+- `POST /auth/login`: sign in and receive a driver JWT
+- `DELETE /auth/delete-account`: delete the authenticated driver account and related data
+- `POST /invoice`: create and persist an invoice
+- `GET /invoice/:id`: fetch one invoice
+- `GET /invoice`: list invoices, newest first
+- `DELETE /invoice/:id`: delete an invoice
+- `GET /reports`: return invoice count, aggregate totals, and daily/weekly/monthly earnings series
+- `POST /share/:id`: create or reuse a compact share token for an invoice
+- `GET /share/:token`: fetch an invoice using its compact share token
+- `GET /health`: service health check
+- `GET /profile`: fetch the authenticated driver's saved name and vehicle
+- `POST /profile/save`: save or update the authenticated driver's name and vehicle
+- `DELETE /profile/clear`: clear the authenticated driver's saved profile
 
 Invoices receive an `expiresAt` value 60 days after creation and are removed by MongoDB's TTL index.
 
-On mobile browsers that support file sharing, the PDF and image actions use `navigator.share()` to share the generated file directly. Other browsers download the file instead. WhatsApp sharing includes a compact invoice link generated by the API.
+## Driver Profile Behavior
 
-## Driver profile authentication
+When a driver signs up, the backend also creates a saved driver profile. The create-ride-bill page uses that saved name and vehicle number by default, and the user can still edit them before saving a bill.
 
-Profile routes require `Authorization: Bearer <driver-jwt>`. Generate a local token with:
+Profile routes require `Authorization: Bearer <driver-jwt>`. Driver profiles are scoped to the JWT `driverId`, and vehicle numbers remain unique across profiles.
 
-```powershell
-npm run token -- driverId=driver-123 role=driver
-```
-
-Put the generated token in `frontend/.env` as `VITE_DRIVER_TOKEN`. Driver profiles are scoped to the JWT `driverId`; vehicle numbers are unique across profiles.
-
-## Backfill old invoices
+## Backfill Old Invoices
 
 If you have older invoices with a missing `driverId`, run the backfill helper. It first performs a dry run and only writes changes when you pass `--apply`:
 
@@ -81,4 +153,3 @@ The script matches invoices to drivers by exact `vehicleNumber`, which is the sa
 npm run build
 npm run lint
 ```
-#
