@@ -127,6 +127,7 @@ function App() {
   const [authView, setAuthView] = useState("login");
   const [view, setView] = useState("new");
   const [form, setForm] = useState(initialForm);
+  const [formResetVersion, setFormResetVersion] = useState(0);
   const syncBillForm = useCallback((nextForm) => setForm(nextForm), []);
   const [invoices, setInvoices] = useState([]);
   const [reports, setReports] = useState({
@@ -329,6 +330,12 @@ function App() {
       setSavedInvoice(invoice);
       setIsModalOpen(true);
       setNotice("Invoice saved successfully!");
+      setForm((current) => ({
+        ...initialForm,
+        driverName: current.driverName,
+        vehicleNumber: current.vehicleNumber,
+      }));
+      setFormResetVersion((current) => current + 1);
       return invoice;
     } catch (error) {
       setNotice(error.message === 'Failed to fetch' ? 'Unable to reach the API. Start it with npm run server.' : error.message);
@@ -890,6 +897,7 @@ function App() {
             <PageTransition view={view}>
             {view === "new" && (
               <NewBillView
+                key={formResetVersion}
                 form={form}
                 totals={totals}
                 fields={PASSENGER_FIELDS}

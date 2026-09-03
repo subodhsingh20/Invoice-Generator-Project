@@ -188,7 +188,7 @@ function InvoiceDialog({
               sx={{ justifyContent: "space-between", alignItems: "flex-start" }}
               className="invoice-detail-header"
             >
-              <ReceiptBrand logo={logo} title="Journey invoice" titleVariant="h3" />
+              <ReceiptBrand logo={logo} title="Journey invoice" titleVariant="h4" />
               <Typography className="receipt-number">
                 #{String(invoice.invoiceId || invoice._id || "").slice(-6).toUpperCase()}
               </Typography>
