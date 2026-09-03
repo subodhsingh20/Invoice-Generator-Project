@@ -12,6 +12,7 @@ function createImageUpload({ folder, allowedMimeTypes }) {
     storage: multerS3({
       s3: s3Client,
       bucket: b2Bucket,
+      acl: (request, file, callback) => callback(null, null),
       contentType: multerS3.AUTO_CONTENT_TYPE,
       metadata: (request, file, callback) => {
         callback(null, {

@@ -7,9 +7,9 @@ import BottomNavigationAction from "@mui/material/BottomNavigationAction";
 import Paper from "@mui/material/Paper";
 
 const items = [
-  ["dashboard", "Dashboard", DashboardOutlined],
   ["new", "New Bill", ReceiptLongOutlined],
   ["invoices", "Archive", DescriptionOutlined],
+  ["dashboard", "Dashboard", DashboardOutlined],
   ["settings", "Settings", SettingsOutlined],
 ];
 

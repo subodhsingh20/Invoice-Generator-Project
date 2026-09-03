@@ -115,11 +115,19 @@ const afterAnimationFrame = () =>
 function App() {
   const storedToken = useMemo(() => getStoredToken(), []);
   const [token, setToken] = useState(storedToken);
-  const [themeMode] = useState(getInitialThemeMode);
+  const [themeMode, setThemeMode] = useState(getInitialThemeMode);
   const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
+  const toggleTheme = () => {
+    setThemeMode((current) => {
+      const nextMode = current === "dark" ? "light" : "dark";
+      localStorage.setItem("easybill_theme_mode", nextMode);
+      return nextMode;
+    });
+  };
   const [authView, setAuthView] = useState("login");
   const [view, setView] = useState("new");
   const [form, setForm] = useState(initialForm);
+  const syncBillForm = useCallback((nextForm) => setForm(nextForm), []);
   const [invoices, setInvoices] = useState([]);
   const [reports, setReports] = useState({
     invoiceCount: 0,
@@ -729,7 +737,7 @@ function App() {
   if (!token) {
     return (
       <ThemeProvider theme={theme}>
-        <Box className="app-shell auth-shell">
+        <Box className={`app-shell auth-shell theme-${themeMode}`}>
           <Container maxWidth="sm" className="page-container auth-container">
             <Suspense
               fallback={
@@ -770,7 +778,7 @@ function App() {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box className="app-shell">
+      <Box className={`app-shell theme-${themeMode}`}>
         <Box component="main" className="page-main">
           <Container maxWidth="lg" className="page-container">
           <Box component="header" className="topbar">
@@ -812,7 +820,7 @@ function App() {
             anchor="left"
             open={menuOpen}
             onClose={() => setMenuOpen(false)}
-            className="mobile-drawer"
+            className={`mobile-drawer theme-${themeMode}`}
             slotProps={{ paper: { id: "mobile-navigation-drawer" } }}
           >
             <Box className="drawer-content" role="presentation">
@@ -848,7 +856,7 @@ function App() {
                 </ListItem>
                 <ListItem disablePadding>
                   <ListItemButton selected={view === "invoices"} onClick={() => changeView("invoices")}>
-                    <ListItemText primary="Invoices" secondary="View saved rides" />
+                    <ListItemText primary="Archive" secondary="View saved rides" />
                   </ListItemButton>
                 </ListItem>
                 <ListItem disablePadding>
@@ -900,7 +908,7 @@ function App() {
                 qrLoading={qrLoading}
                 logo={logo}
                 saving={saving}
-                onFormChange={(nextForm) => setForm(nextForm)}
+                onFormChange={syncBillForm}
               />
             )}
             {view === "invoices" && (
@@ -942,6 +950,8 @@ function App() {
                 deleteLogo={deleteLogo}
                 profile={driverProfile}
                 onOpenAccount={() => setAccountOpen(true)}
+                themeMode={themeMode}
+                onToggleTheme={toggleTheme}
               />
             )}
             </PageTransition>

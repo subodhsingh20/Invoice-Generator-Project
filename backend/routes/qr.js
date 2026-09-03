@@ -58,8 +58,11 @@ function uploadSingle(upload, fieldName) {
     if (error instanceof multer.MulterError && error.code === 'LIMIT_UNEXPECTED_FILE') {
       return response.status(400).json({ error: 'Only PNG and JPG QR images are supported' })
     }
-    console.error('B2 QR upload failed:', error.message)
-    return response.status(500).json({ error: 'Unable to upload QR code' })
+    console.error('B2 QR upload failed:', error)
+    return response.status(500).json({
+      error: 'Unable to upload QR code',
+      ...(process.env.NODE_ENV !== 'production' && { details: error.message }),
+    })
   })
 }
 

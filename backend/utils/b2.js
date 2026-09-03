@@ -46,6 +46,7 @@ export function getObjectKey(file) {
 
 export async function getPresignedObjectUrl(key, expiresIn = 3600) {
   if (!key) return ''
+  if (String(key).startsWith('data:')) return key
   const objectKey = normalizeObjectKey(key)
   return getSignedUrl(
     s3Client,

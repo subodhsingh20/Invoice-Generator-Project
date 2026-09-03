@@ -5,8 +5,8 @@ export function createAppTheme(mode = "dark") {
   return createTheme({
     palette: {
       mode,
-      primary: { main: dark ? "#61e7d4" : "#087f73" },
-      secondary: { main: dark ? "#ff9b71" : "#c85f32" },
+      primary: { main: dark ? "#61e7d4" : "#0D9488" },
+      secondary: { main: dark ? "#ff9b71" : "#f97352" },
       background: {
         default: dark ? "#071216" : "#f5f8f7",
         paper: dark ? "rgba(17, 31, 35, 0.78)" : "rgba(255, 255, 255, 0.9)",
@@ -26,9 +26,11 @@ export function createAppTheme(mode = "dark") {
     components: {
       MuiPaper: {
         styleOverrides: {
-          root: {
-            border: `1px solid ${dark ? "rgba(97, 231, 212, 0.14)" : "rgba(8, 127, 115, 0.12)"}`,
-            backdropFilter: "blur(18px)",
+            root: {
+              border: `1px solid ${dark ? "rgba(97, 231, 212, 0.14)" : "rgba(13, 148, 136, 0.10)"}`,
+              borderRadius: 16,
+              backdropFilter: "blur(18px)",
+              boxShadow: dark ? "0 14px 34px rgba(0, 0, 0, 0.18)" : "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
           },
         },
       },
@@ -37,11 +39,21 @@ export function createAppTheme(mode = "dark") {
           root: {
             textTransform: "none",
             fontWeight: 700,
+            borderRadius: 14,
             transition: "transform 160ms ease, box-shadow 160ms ease",
             "&:active": { transform: "scale(0.97)" },
           },
           containedPrimary: {
             boxShadow: dark ? "0 0 24px rgba(97, 231, 212, 0.22)" : "0 8px 22px rgba(8, 127, 115, 0.18)",
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: 12,
+            transition: "box-shadow 160ms ease, border-color 160ms ease",
+            "&.Mui-focused": { boxShadow: `0 0 0 3px ${dark ? "rgba(97, 231, 212, 0.18)" : "rgba(13, 148, 136, 0.14)"}` },
           },
         },
       },

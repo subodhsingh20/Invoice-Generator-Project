@@ -5,6 +5,8 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import ImageOutlined from "@mui/icons-material/ImageOutlined";
+import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
+import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
 import PageIntro from "./PageIntro.jsx";
 
 function QrSettings({
@@ -17,6 +19,8 @@ function QrSettings({
   deleteLogo,
   profile,
   onOpenAccount,
+  themeMode,
+  onToggleTheme,
 }) {
   return (
     <>
@@ -45,6 +49,22 @@ function QrSettings({
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Button variant="contained" onClick={onOpenAccount}>Delete account</Button>
             </Stack>
+          </Stack>
+        </Paper>
+        <Paper className="settings-panel theme-settings-panel" elevation={0}>
+          <Stack spacing={2.5}>
+            <Box>
+              <Typography component="h2" className="panel-title">Theme</Typography>
+              <Typography className="panel-subtitle">Choose the appearance that works best for you</Typography>
+            </Box>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={themeMode === "dark" ? <LightModeOutlined /> : <DarkModeOutlined />}
+              onClick={onToggleTheme}
+            >
+              {themeMode === "dark" ? "Change theme to light" : "Change theme to dark"}
+            </Button>
           </Stack>
         </Paper>
         <Paper className="settings-panel" elevation={0}>
