@@ -1,43 +1,31 @@
 import { Router } from 'express'
+import multer from 'multer'
 import DriverProfile from '../models/DriverProfile.js'
 import requireDriver from '../middleware/requireDriver.js'
+import { uploadLogo } from '../middleware/upload.js'
+import { getPresignedObjectUrl, getObjectKey } from '../utils/b2.js'
 
 const router = Router()
-const allowedLogoMimeTypes = new Set(['image/png', 'image/jpeg', 'image/svg+xml'])
-const maxLogoSize = 2 * 1024 * 1024
 
 router.get('/', requireDriver, async (request, response) => {
   try {
     const profile = await DriverProfile.findOne({ driverId: String(request.user.driverId) }).select('driverName vehicleNumber logoData logoMimeType logoSize updatedAt')
-    return response.json(profile || { driverName: '', vehicleNumber: '', logoData: '', logoMimeType: '', logoSize: 0 })
+    return response.json(profile ? await formatProfile(profile) : { driverName: '', vehicleNumber: '', logoData: '', logoMimeType: '', logoSize: 0 })
   } catch {
     return response.status(500).json({ error: 'Unable to load saved driver data' })
   }
 })
 
-router.post('/logo', requireDriver, async (request, response) => {
-  const { logoData, logoMimeType, logoSize } = request.body
-  if (!logoData || !logoMimeType || !logoSize) {
-    return response.status(400).json({ error: 'Logo image, file type, and size are required' })
-  }
-  if (!allowedLogoMimeTypes.has(logoMimeType)) {
-    return response.status(400).json({ error: 'Only PNG, JPG, and SVG logos are supported' })
-  }
-  if (!Number.isFinite(Number(logoSize)) || Number(logoSize) <= 0 || Number(logoSize) > maxLogoSize) {
-    return response.status(400).json({ error: 'Logo must be 2 MB or smaller' })
-  }
-  if (!isBase64Image(logoData, logoMimeType)) {
-    return response.status(400).json({ error: 'Invalid logo image data' })
-  }
-
+router.post('/logo', requireDriver, uploadSingle(uploadLogo, 'logo'), async (request, response) => {
+  if (!request.file) return response.status(400).json({ error: 'Logo image is required' })
   try {
     const profile = await DriverProfile.findOneAndUpdate(
       { driverId: String(request.user.driverId) },
       {
         $set: {
-          logoData,
-          logoMimeType,
-          logoSize: Number(logoSize),
+          logoData: getObjectKey(request.file),
+          logoMimeType: request.file.mimetype,
+          logoSize: request.file.size,
         },
         $setOnInsert: {
           driverId: String(request.user.driverId),
@@ -47,7 +35,7 @@ router.post('/logo', requireDriver, async (request, response) => {
       },
       { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true },
     ).select('logoData logoMimeType logoSize updatedAt')
-    return response.json({ message: 'Logo saved', logo: formatLogo(profile) })
+    return response.json({ message: 'Logo saved', logo: await formatLogo(profile) })
   } catch (error) {
     if (error.name === 'ValidationError') return response.status(400).json({ error: 'Invalid logo data' })
     return response.status(500).json({ error: 'Unable to save logo' })
@@ -96,20 +84,35 @@ router.delete('/clear', requireDriver, async (request, response) => {
   }
 })
 
-function isBase64Image(value, mimeType) {
-  const prefix = `data:${mimeType};base64,`
-  if (!String(value).startsWith(prefix)) return false
-  const payload = String(value).slice(prefix.length)
-  return /^[A-Za-z0-9+/]+={0,2}$/.test(payload)
+async function formatProfile(profile) {
+  const value = profile.toObject()
+  return {
+    ...value,
+    logoData: await getPresignedObjectUrl(value.logoData),
+  }
 }
 
-function formatLogo(profile) {
+async function formatLogo(profile) {
   return {
-    logoData: profile.logoData || '',
+    logoData: await getPresignedObjectUrl(profile.logoData),
     logoMimeType: profile.logoMimeType || '',
     logoSize: profile.logoSize || 0,
     updatedAt: profile.updatedAt,
   }
+}
+
+function uploadSingle(upload, fieldName) {
+  return (request, response, next) => upload.single(fieldName)(request, response, (error) => {
+    if (!error) return next()
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return response.status(413).json({ error: 'Logo must be 2 MB or smaller' })
+    }
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return response.status(400).json({ error: 'Only PNG, JPG, and SVG logos are supported' })
+    }
+    console.error('B2 logo upload failed:', error.message)
+    return response.status(500).json({ error: 'Unable to upload logo' })
+  })
 }
 
 export default router

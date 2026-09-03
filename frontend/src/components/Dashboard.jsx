@@ -3,6 +3,7 @@ import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
+import Skeleton from "@mui/material/Skeleton";
 import AccountBalanceWalletOutlined from "@mui/icons-material/AccountBalanceWalletOutlined";
 import LocalTaxiOutlined from "@mui/icons-material/LocalTaxiOutlined";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
@@ -273,7 +274,9 @@ function Dashboard({ reports, filters, setFilters, loadReports, loading }) {
               }
             />
             <Box className="chart-box chart-box-lg">
-              {daily.length ? (
+              {loading ? (
+                <Skeleton variant="rounded" width="100%" height="100%" />
+              ) : daily.length ? (
                 <Line data={dailyData} options={chartOptions(daily)} />
               ) : (
                 <EmptyChart message="No daily earnings yet. Save a bill to see it here." />
@@ -295,7 +298,9 @@ function Dashboard({ reports, filters, setFilters, loadReports, loading }) {
               }
             />
             <Box className="chart-box">
-              {weekly.length ? (
+              {loading ? (
+                <Skeleton variant="rounded" width="100%" height="100%" />
+              ) : weekly.length ? (
                 <Line data={weeklyData} options={chartOptions(weekly)} />
               ) : (
                 <EmptyChart message="No weekly earnings yet." />
@@ -317,7 +322,9 @@ function Dashboard({ reports, filters, setFilters, loadReports, loading }) {
               }
             />
             <Box className="chart-box">
-              {monthly.length ? (
+              {loading ? (
+                <Skeleton variant="rounded" width="100%" height="100%" />
+              ) : monthly.length ? (
                 <Bar data={monthlyData} options={chartOptions(monthly)} />
               ) : (
                 <EmptyChart message="No monthly earnings yet." />

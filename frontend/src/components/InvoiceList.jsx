@@ -13,6 +13,7 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import Skeleton from "@mui/material/Skeleton";
 import DeleteOutlineOutlined from "@mui/icons-material/DeleteOutlineOutlined";
 import IosShareOutlined from "@mui/icons-material/IosShareOutlined";
 import PictureAsPdfOutlined from "@mui/icons-material/PictureAsPdfOutlined";
@@ -21,6 +22,8 @@ import PageIntro from "./PageIntro.jsx";
 import ReceiptBrand from "./ReceiptBrand.jsx";
 import { dateLabel, money } from "../utils/format.js";
 import { useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 
 function InvoiceList({
   invoices,
@@ -38,16 +41,27 @@ function InvoiceList({
   logo,
 }) {
   const [query, setQuery] = useState("");
+  const [optimisticallyDeleted, setOptimisticallyDeleted] = useState([]);
+  const deleteMutation = useMutation({
+    mutationFn: deleteInvoice,
+    onMutate: (id) => setOptimisticallyDeleted((current) => [...current, id]),
+    onError: (error, id) => {
+      setOptimisticallyDeleted((current) => current.filter((item) => item !== id));
+    },
+  });
   const filteredInvoices = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return invoices;
-    return invoices.filter((invoice) => {
+    const visible = invoices.filter((invoice) => !optimisticallyDeleted.includes(invoice._id));
+    if (!normalized) return visible;
+    return visible.filter((invoice) => {
       const passenger = String(invoice.passengerName || "").toLowerCase();
       const date = String(dateLabel(invoice.createdAt)).toLowerCase();
       const createdAt = String(invoice.createdAt || "").toLowerCase();
       return passenger.includes(normalized) || date.includes(normalized) || createdAt.includes(normalized);
     });
-  }, [invoices, query]);
+  }, [invoices, query, optimisticallyDeleted]);
+
+  const handleDelete = (id) => deleteMutation.mutate(id);
 
   return (
     <>
@@ -84,6 +98,14 @@ function InvoiceList({
             <Typography>Total amount</Typography>
             <Typography>Action</Typography>
           </Box>
+          {loading && [1, 2, 3].map((item) => (
+            <Box className="table-row" key={item}>
+              <Skeleton variant="text" width="55%" />
+              <Skeleton variant="text" width="40%" />
+              <Skeleton variant="text" width="35%" />
+              <Skeleton variant="rounded" width={150} height={32} />
+            </Box>
+          ))}
           {!loading && filteredInvoices.length === 0 && (
             <Typography className="empty-state">
               No invoices match your search.
@@ -108,7 +130,8 @@ function InvoiceList({
                   size="small"
                   color="error"
                   startIcon={<DeleteOutlineOutlined />}
-                  onClick={() => deleteInvoice(invoice._id)}
+                  onClick={() => handleDelete(invoice._id)}
+                  disabled={deleteMutation.isPending && deleteMutation.variables === invoice._id}
                 >
                   Delete
                 </Button>
@@ -154,6 +177,11 @@ function InvoiceDialog({
         )}
         {!loading && error && <Alert severity="error">{error}</Alert>}
         {!loading && invoice && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
           <Box ref={invoiceDetailRef} className="invoice-detail">
             <Stack
               direction="row"
@@ -181,6 +209,7 @@ function InvoiceDialog({
               <InvoiceField label="Total" value={money(invoice.total ?? totals.total)} strong />
             </Grid>
           </Box>
+          </motion.div>
         )}
       </DialogContent>
       <DialogActions>

@@ -1,4 +1,7 @@
-import { memo } from "react";
+import { memo, useEffect } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -17,6 +20,19 @@ import ReceiptBrand from "./ReceiptBrand.jsx";
 import { money } from "../utils/format.js";
 
 const upiQrMode = "UPI QR";
+const draftKey = "easybill_invoice_draft";
+const billSchema = z.object({
+  passengerName: z.string().trim().min(1, "Passenger name is required"),
+  driverName: z.string().trim().min(1, "Driver name is required"),
+  vehicleNumber: z.string().trim().min(1, "Vehicle number is required"),
+  pickup: z.string().trim().min(1, "Pickup location is required"),
+  drop: z.string().trim().min(1, "Drop location is required"),
+  distance: z.coerce.number().finite().nonnegative("Distance cannot be negative"),
+  fare: z.coerce.number().finite().nonnegative("Fare cannot be negative"),
+  gst: z.coerce.number().finite().nonnegative("GST cannot be negative"),
+  discount: z.coerce.number().finite().nonnegative("Discount cannot be negative"),
+  paymentMode: z.enum(["Cash", "Card", upiQrMode]),
+});
 
 function NewBill({
   form,
@@ -34,15 +50,38 @@ function NewBill({
   qrLoading,
   logo,
   saving,
+  onFormChange,
 }) {
-  const canSave = Boolean(
-    form.passengerName?.trim() &&
-      form.driverName?.trim() &&
-      form.vehicleNumber?.trim() &&
-      form.pickup?.trim() &&
-      form.drop?.trim() &&
-      String(form.distance).trim() &&
-      String(form.fare).trim(),
+  const draft = (() => {
+    try { return JSON.parse(localStorage.getItem(draftKey) || "null"); } catch { return null; }
+  })();
+  const { control, handleSubmit, register, reset, watch, formState: { errors } } = useForm({
+    resolver: zodResolver(billSchema),
+    defaultValues: draft || form,
+    mode: "onBlur",
+  });
+  const watchedForm = watch();
+
+  useEffect(() => {
+    if (draft && !form.passengerName && !form.pickup && !form.fare) {
+      reset(draft);
+      onFormChange(draft);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem(draftKey, JSON.stringify(watchedForm));
+      onFormChange(watchedForm);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [watchedForm, onFormChange]);
+
+  const field = (name, label, props = {}) => (
+    <Controller name={name} control={control} render={({ field: input }) => (
+      <TextField fullWidth label={label} {...props} {...input} value={input.value ?? ""}
+        error={Boolean(errors[name])} helperText={errors[name]?.message} />
+    )} />
   );
 
   return (
@@ -59,8 +98,11 @@ function NewBill({
             component="form"
             className="form-panel"
             elevation={0}
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={handleSubmit(() => { localStorage.removeItem(draftKey); saveInvoice(); })}
           >
+            {Object.keys(billSchema.shape).map((name) => (
+              <input key={name} type="hidden" {...register(name)} value={form[name] ?? ""} readOnly />
+            ))}
             <Stack spacing={3}>
               <Box>
                 <Typography component="h2" className="panel-title">
@@ -79,47 +121,22 @@ function NewBill({
                       sm: field === "passengerName" ? 12 : 6,
                     }}
                   >
-                    <TextField
-                      fullWidth
-                      label={label}
-                      value={form[field]}
-                      onChange={updateField(field)}
-                    />
+                    {field === "passengerName" && (
+                      <TextField fullWidth label={label} value={form[field]} onChange={updateField(field)} error={Boolean(errors[field])} helperText={errors[field]?.message} />
+                    )}
                   </Grid>
                 ))}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Driver name"
-                    placeholder="e.g. Arjun Sharma"
-                    value={form.driverName}
-                    disabled={!profileEditing}
-                    onChange={updateField("driverName")}
-                    slotProps={{
-                      input: {
-                        startAdornment: (
-                          <InputAdornment position="start"></InputAdornment>
-                        ),
-                      },
-                    }}
-                  />
+                  {field("driverName", "Driver name", {
+                    placeholder: "e.g. Arjun Sharma",
+                    disabled: !profileEditing,
+                  })}
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Vehicle number"
-                    placeholder="e.g. MH 12 AB 1234"
-                    value={form.vehicleNumber}
-                    disabled={!profileEditing}
-                    onChange={updateField("vehicleNumber")}
-                    slotProps={{
-                      input: {
-                        startAdornment: (
-                          <InputAdornment position="start"></InputAdornment>
-                        ),
-                      },
-                    }}
-                  />
+                  {field("vehicleNumber", "Vehicle number", {
+                    placeholder: "e.g. MH 12 AB 1234",
+                    disabled: !profileEditing,
+                  })}
                 </Grid>
                 <Grid size={12}>
                   <Stack

@@ -41,8 +41,11 @@ import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import { money } from "./utils/format.js";
+import { createAppTheme, getInitialThemeMode } from "./theme.js";
+import PageTransition from "./components/PageTransition.jsx";
+import MobileBottomNav from "./components/MobileBottomNav.jsx";
 import "./App.css";
 
 // Non-initial views are code-split: their heavy dependencies (chart.js, and
@@ -109,37 +112,11 @@ const releaseActiveFocus = (target) => {
 };
 const afterAnimationFrame = () =>
   new Promise((resolve) => requestAnimationFrame(resolve));
-const readFileAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Unable to read selected QR image"));
-    reader.readAsDataURL(file);
-  });
-
 function App() {
   const storedToken = useMemo(() => getStoredToken(), []);
   const [token, setToken] = useState(storedToken);
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          primary: { main: "#1A73E8" },
-          secondary: { main: "#FF6B00" },
-          background: {
-            default: "#f5f7fb",
-            paper: "#ffffff",
-          },
-          text: {
-            primary: "#102033",
-            secondary: "#516173",
-          },
-        },
-        typography: { fontFamily: "DM Sans, sans-serif" },
-        shape: { borderRadius: 14 },
-      }),
-    [],
-  );
+  const [themeMode] = useState(getInitialThemeMode);
+  const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
   const [authView, setAuthView] = useState("login");
   const [view, setView] = useState("new");
   const [form, setForm] = useState(initialForm);
@@ -363,8 +340,10 @@ function App() {
       if (!result.ok) throw new Error(data.error || "Unable to delete invoice");
       setInvoices((current) => current.filter((invoice) => invoice._id !== id));
       setNotice("Invoice deleted");
+      return true;
     } catch (error) {
       setNotice(error.message);
+      throw error;
     }
   };
   const viewInvoice = async (id, event) => {
@@ -503,11 +482,12 @@ function App() {
     }
     setQrLoading(true);
     try {
-      const imageData = await readFileAsDataUrl(file);
+      const formData = new FormData();
+      formData.append("qr", file);
       const result = await fetch(`${API_URL}/qr/save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...driverHeaders() },
-        body: JSON.stringify({ imageData, mimeType: file.type, size: file.size }),
+        headers: driverHeaders(),
+        body: formData,
       });
       const data = await result.json().catch(() => ({}));
       if (!result.ok) throw new Error(data.error || "Unable to save QR code");
@@ -533,11 +513,12 @@ function App() {
     }
     setLogoLoading(true);
     try {
-      const logoData = await readFileAsDataUrl(file);
+      const formData = new FormData();
+      formData.append("logo", file);
       const result = await fetch(`${API_URL}/profile/logo`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...driverHeaders() },
-        body: JSON.stringify({ logoData, logoMimeType: file.type, logoSize: file.size }),
+        headers: driverHeaders(),
+        body: formData,
       });
       const data = await result.json().catch(() => ({}));
       if (!result.ok) throw new Error(data.error || "Unable to save logo");
@@ -898,6 +879,7 @@ function App() {
               </Box>
             }
           >
+            <PageTransition view={view}>
             {view === "new" && (
               <NewBillView
                 form={form}
@@ -918,6 +900,7 @@ function App() {
                 qrLoading={qrLoading}
                 logo={logo}
                 saving={saving}
+                onFormChange={(nextForm) => setForm(nextForm)}
               />
             )}
             {view === "invoices" && (
@@ -961,7 +944,9 @@ function App() {
                 onOpenAccount={() => setAccountOpen(true)}
               />
             )}
+            </PageTransition>
           </Suspense>
+          <MobileBottomNav value={view} onChange={changeView} />
           <Typography className="footer-note">
             Aura Men Billing Service Portal <span>•</span> Simple billing for the road
           </Typography>

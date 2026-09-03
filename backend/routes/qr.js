@@ -1,48 +1,37 @@
 import { Router } from 'express'
+import multer from 'multer'
 import DriverQr from '../models/DriverQr.js'
 import requireDriver from '../middleware/requireDriver.js'
+import { uploadQr } from '../middleware/upload.js'
+import { getObjectKey, getPresignedObjectUrl } from '../utils/b2.js'
 
 const router = Router()
-const allowedMimeTypes = new Set(['image/png', 'image/jpeg'])
-const maxQrSize = 2 * 1024 * 1024
 
 router.get('/', requireDriver, async (request, response) => {
   try {
     const qr = await DriverQr.findOne({ driverId: String(request.user.driverId) })
     if (!qr) return response.json({ imageData: null, mimeType: null, size: 0, updatedAt: null, exists: false })
-    return response.json(formatQr(qr))
+    return response.json(await formatQr(qr))
   } catch {
     return response.status(500).json({ error: 'Unable to fetch QR code' })
   }
 })
 
-router.post('/save', requireDriver, async (request, response) => {
+router.post('/save', requireDriver, uploadSingle(uploadQr, 'qr'), async (request, response) => {
   try {
-    const { imageData, mimeType, size } = request.body
-    if (!imageData || !mimeType || !size) {
-      return response.status(400).json({ error: 'QR image, file type, and size are required' })
-    }
-    if (!allowedMimeTypes.has(mimeType)) {
-      return response.status(400).json({ error: 'Only PNG and JPG QR images are supported' })
-    }
-    if (!Number.isFinite(Number(size)) || Number(size) <= 0 || Number(size) > maxQrSize) {
-      return response.status(400).json({ error: 'QR image must be 2 MB or smaller' })
-    }
-    if (!isBase64Image(imageData, mimeType)) {
-      return response.status(400).json({ error: 'Invalid QR image data' })
-    }
+    if (!request.file) return response.status(400).json({ error: 'QR image is required' })
 
     const qr = await DriverQr.findOneAndUpdate(
       { driverId: String(request.user.driverId) },
       {
         driverId: String(request.user.driverId),
-        imageData,
-        mimeType,
-        size: Number(size),
+        imageData: getObjectKey(request.file),
+        mimeType: request.file.mimetype,
+        size: request.file.size,
       },
       { returnDocument: 'after', upsert: true, runValidators: true },
     )
-    return response.json({ message: 'QR code saved', qr: formatQr(qr) })
+    return response.json({ message: 'QR code saved', qr: await formatQr(qr) })
   } catch (error) {
     if (error.name === 'ValidationError') {
       return response.status(400).json({ error: 'Invalid QR code data', details: error.message })
@@ -51,20 +40,27 @@ router.post('/save', requireDriver, async (request, response) => {
   }
 })
 
-function isBase64Image(value, mimeType) {
-  const prefix = `data:${mimeType};base64,`
-  if (!String(value).startsWith(prefix)) return false
-  const payload = String(value).slice(prefix.length)
-  return /^[A-Za-z0-9+/]+={0,2}$/.test(payload)
-}
-
-function formatQr(qr) {
+async function formatQr(qr) {
   return {
-    imageData: qr.imageData,
+    imageData: await getPresignedObjectUrl(qr.imageData),
     mimeType: qr.mimeType,
     size: qr.size,
     updatedAt: qr.updatedAt,
   }
+}
+
+function uploadSingle(upload, fieldName) {
+  return (request, response, next) => upload.single(fieldName)(request, response, (error) => {
+    if (!error) return next()
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return response.status(413).json({ error: 'QR image must be 2 MB or smaller' })
+    }
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return response.status(400).json({ error: 'Only PNG and JPG QR images are supported' })
+    }
+    console.error('B2 QR upload failed:', error.message)
+    return response.status(500).json({ error: 'Unable to upload QR code' })
+  })
 }
 
 export default router
