@@ -196,16 +196,17 @@ function InvoiceDialog({
             <Divider className="receipt-divider" />
             <Grid container spacing={2}>
               <InvoiceField label="Passenger" value={invoice.passengerName} />
+              <InvoiceField label="Passenger contact" value={invoice.passengerContact} />
               <InvoiceField label="Date" value={dateLabel(invoice.date || invoice.createdAt)} />
               <InvoiceField label="Driver" value={invoice.driverName} />
+              <InvoiceField label="Driver contact" value={invoice.driverContact} />
               <InvoiceField label="Vehicle" value={invoice.vehicleNumber} />
               <InvoiceField label="Pickup location" value={invoice.pickupLocation || invoice.pickup} />
               <InvoiceField label="Drop location" value={invoice.dropLocation || invoice.drop} />
               <InvoiceField label="Distance" value={invoice.distance ? `${invoice.distance} km` : "Not added"} />
               <InvoiceField label="Payment mode" value={invoice.paymentMode || "Cash"} />
               <InvoiceField label="Fare" value={money(invoice.fare ?? totals.baseFare)} />
-              <InvoiceField label="GST" value={`${invoice.GST ?? invoice.gst ?? totals.gstRate ?? 0}% (${money(totals.gstAmount)})`} />
-              <InvoiceField label="Discount" value={`${invoice.discount ?? totals.discountRate ?? 0}% (${money(totals.discountAmount)})`} />
+              <InvoiceField label="Discount" value={`−${money(totals.discountAmount ?? invoice.discount)}`} />
               <InvoiceField label="Total" value={money(invoice.total ?? totals.total)} strong />
             </Grid>
           </Box>

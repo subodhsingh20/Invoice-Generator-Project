@@ -24,12 +24,16 @@ router.get('/:id/pdf', requireDriver, async (request, response) => {
     doc.moveDown(0.5)
     doc.fontSize(12)
     doc.text(`Passenger: ${invoice.passengerName || 'Not added'}`)
+    doc.text(`Passenger contact: ${invoice.passengerContact || 'Not added'}`)
     doc.text(`Driver: ${invoice.driverName || 'Not added'}`)
+    doc.text(`Driver contact: ${invoice.driverContact || 'Not added'}`)
     doc.text(`Vehicle: ${invoice.vehicleNumber || 'Not added'}`)
     doc.text(`From: ${invoice.pickup || 'Not added'}`)
     doc.text(`To: ${invoice.drop || 'Not added'}`)
     doc.text(`Distance: ${invoice.distance} km`)
     doc.text(`Payment: ${invoice.paymentMode || 'Cash'}`)
+    doc.text(`Base fare: ${invoice.fare}`)
+    doc.text(`Discount: -${invoice.totals?.discountAmount || 0}`)
     doc.moveDown(0.5)
     const total = Number(invoice.totals?.total || 0)
     doc.fontSize(16).text(`Total: ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total)}`, { align: 'right' })
@@ -82,11 +86,16 @@ router.post('/', requireDriver, async (request, response) => {
     if (missingFields.length > 0) {
       return response.status(400).json({ error: 'Missing required invoice fields', fields: missingFields })
     }
+    if (Number(request.body.discount || 0) > Number(request.body.fare || 0)) {
+      return response.status(400).json({ error: 'Discount cannot exceed base fare', fields: ['discount'] })
+    }
 
     const totals = calculateInvoiceTotals(request.body)
+    const invoiceNumber = (await Invoice.countDocuments({ driverId: String(request.user.driverId) })) + 1
     const invoice = await Invoice.create({
       ...request.body,
       driverId: String(request.user.driverId),
+      invoiceNumber,
       paymentMode: request.body.paymentMode || 'Cash',
       totals,
     })
@@ -145,10 +154,13 @@ function formatInvoice(invoice) {
   const value = invoice.toObject()
   return {
     invoiceId: value._id,
+    invoiceNumber: value.invoiceNumber,
     _id: value._id,
     passengerName: value.passengerName,
+    passengerContact: value.passengerContact,
     driverId: value.driverId,
     driverName: value.driverName,
+    driverContact: value.driverContact,
     vehicleNumber: value.vehicleNumber,
     pickup: value.pickup,
     pickupLocation: value.pickup,
@@ -156,8 +168,6 @@ function formatInvoice(invoice) {
     dropLocation: value.drop,
     distance: value.distance,
     fare: value.fare,
-    gst: value.gst,
-    GST: value.gst,
     discount: value.discount,
     paymentMode: value.paymentMode || 'Cash',
     totals: value.totals,

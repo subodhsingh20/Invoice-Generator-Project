@@ -75,13 +75,14 @@ const AUTH_TOKEN_KEY = "easybill_driver_token";
 const AUTH_DRIVER_KEY = "easybill_driver_profile";
 const initialForm = {
   passengerName: "",
+  passengerContact: "",
   driverName: "",
+  driverContact: "",
   vehicleNumber: "",
   pickup: "",
   drop: "",
   distance: "",
   fare: "",
-  gst: "5",
   discount: "0",
   paymentMode: "Cash",
 };
@@ -112,6 +113,63 @@ const releaseActiveFocus = (target) => {
 };
 const afterAnimationFrame = () =>
   new Promise((resolve) => requestAnimationFrame(resolve));
+const PDF_CAPTURE_SCALE = 2;
+const PDF_JPEG_QUALITY = 0.85;
+
+const waitForImage = (image) => new Promise((resolve, reject) => {
+  if (image.complete) {
+    if (image.naturalWidth) resolve();
+    else reject(new Error("The receipt logo could not be loaded"));
+    return;
+  }
+  image.addEventListener("load", resolve, { once: true });
+  image.addEventListener("error", () => reject(new Error("The receipt logo could not be loaded")), { once: true });
+});
+
+// html2canvas can only safely export cross-origin images once they are CORS
+// readable. Convert the already-rendered logo to a data URI before capture so
+// the exported receipt has no network dependency.
+const inlineReceiptImages = async (element) => {
+  const images = [...element.querySelectorAll("img")];
+  await Promise.all(images.map(async (image) => {
+    await waitForImage(image);
+    if (image.src.startsWith("data:")) return;
+    const response = await fetch(image.currentSrc || image.src, { mode: "cors" });
+    if (!response.ok) throw new Error("The receipt logo could not be prepared for export");
+    const blob = await response.blob();
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("The receipt logo could not be prepared for export"));
+      reader.readAsDataURL(blob);
+    });
+    image.src = dataUrl;
+    await waitForImage(image);
+  }));
+};
+
+const createReceiptPdf = (jsPDF, canvas) => {
+  const width = canvas.width / PDF_CAPTURE_SCALE;
+  const height = canvas.height / PDF_CAPTURE_SCALE;
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "px",
+    format: [width, height],
+    hotfixes: ["px_scaling"],
+  });
+  const image = canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
+  pdf.addImage(image, "JPEG", 0, 0, width, height, undefined, "FAST");
+  return pdf;
+};
+
+const logPdfStats = (canvas, blob) => {
+  console.info("Receipt PDF export", {
+    canvas: `${canvas.width}×${canvas.height}`,
+    scale: PDF_CAPTURE_SCALE,
+    jpegQuality: PDF_JPEG_QUALITY,
+    pdfSizeKB: Math.round(blob.size / 1024),
+  });
+};
 function App() {
   const storedToken = useMemo(() => getStoredToken(), []);
   const [token, setToken] = useState(storedToken);
@@ -168,10 +226,9 @@ function App() {
   const menuOpenFrameRef = useRef(null);
   const totals = useMemo(() => {
     const fare = Number(form.fare) || 0;
-    const gst = (fare * (Number(form.gst) || 0)) / 100;
-    const discount = (fare * (Number(form.discount) || 0)) / 100;
-    return { fare, gst, discount, total: Math.max(0, fare + gst - discount) };
-  }, [form.fare, form.gst, form.discount]);
+    const discount = Number(form.discount) || 0;
+    return { fare, discount, total: Math.max(0, fare - discount) };
+  }, [form.fare, form.discount]);
   const updateField = useCallback(
     (field) => (event) =>
       setForm((current) => ({ ...current, [field]: event.target.value })),
@@ -225,9 +282,12 @@ function App() {
         setForm((current) => ({
           ...current,
           driverName: data.driverName || current.driverName || driverProfile?.driverName || "",
+          driverContact: data.driverContact || current.driverContact || "",
           vehicleNumber: data.vehicleNumber || current.vehicleNumber || driverProfile?.vehicleNumber || "",
+          passengerName: data.passengerName || current.passengerName || "",
+          passengerContact: data.passengerContact || current.passengerContact || "",
         }));
-        setLogo(data.logoData ? { logoData: data.logoData, logoMimeType: data.logoMimeType, logoSize: data.logoSize, updatedAt: data.updatedAt } : null);
+        setLogo(data.logoData ? { logoData: data.logoInlineData || data.logoData, logoMimeType: data.logoMimeType, logoSize: data.logoSize, updatedAt: data.updatedAt } : null);
       })
       .catch((error) => setNotice(error.message));
   }, [token, driverProfile]);
@@ -311,8 +371,12 @@ function App() {
       setNotice(`Complete these fields: ${missingFields.map(([, label]) => label).join(', ')}`)
       return null
     }
-    if (Number(form.distance) < 0 || Number(form.fare) < 0 || Number(form.gst) < 0 || Number(form.discount) < 0) {
-      setNotice('Distance, fare, GST, and discount cannot be negative')
+    if (Number(form.distance) < 0 || Number(form.fare) < 0 || Number(form.discount) < 0) {
+      setNotice('Distance, fare, and discount cannot be negative')
+      return null
+    }
+    if (Number(form.discount) > Number(form.fare)) {
+      setNotice('Discount cannot exceed base fare')
       return null
     }
     setSaving(true);
@@ -330,12 +394,9 @@ function App() {
       setSavedInvoice(invoice);
       setIsModalOpen(true);
       setNotice("Invoice saved successfully!");
-      setForm((current) => ({
-        ...initialForm,
-        driverName: current.driverName,
-        vehicleNumber: current.vehicleNumber,
-      }));
-      setFormResetVersion((current) => current + 1);
+      // Keep the completed receipt mounted until the user closes the saved
+      // dialog. html2canvas therefore captures the just-saved values instead
+      // of the reset form.
       return invoice;
     } catch (error) {
       setNotice(error.message === 'Failed to fetch' ? 'Unable to reach the API. Start it with npm run server.' : error.message);
@@ -394,61 +455,37 @@ function App() {
   const closeSavedModal = () => {
     setIsModalOpen(false);
     setSavedInvoice(null);
+    localStorage.removeItem("easybill_invoice_draft");
     setForm((current) => ({
       ...initialForm,
       driverName: current.driverName,
+      driverContact: current.driverContact,
       vehicleNumber: current.vehicleNumber,
     }));
+    setFormResetVersion((current) => current + 1);
   };
   const downloadInvoicePdf = async () => {
     if (!invoiceDetailRef.current || !selectedInvoice) return;
     const { html2canvas, jsPDF } = await loadPdfLibs();
-    const canvas = await html2canvas(invoiceDetailRef.current, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-    });
-    const pdf = new jsPDF({
-      unit: "px",
-      format: [canvas.width / 2, canvas.height / 2],
-    });
-    pdf.addImage(
-      canvas.toDataURL("image/png"),
-      "PNG",
-      0,
-      0,
-      canvas.width / 2,
-      canvas.height / 2,
-    );
+    const canvas = await html2canvas(invoiceDetailRef.current, { scale: PDF_CAPTURE_SCALE, useCORS: true, backgroundColor: "#ffffff" });
+    const pdf = createReceiptPdf(jsPDF, canvas);
+    logPdfStats(canvas, pdf.output("blob"));
     pdf.save(`easy-bill-${selectedInvoice.passengerName || "invoice"}.pdf`);
     setNotice("PDF downloaded successfully");
   };
   const shareInvoicePdf = useCallback(async () => {
     if (!invoiceDetailRef.current || !selectedInvoice) return;
     const { html2canvas, jsPDF } = await loadPdfLibs();
-    const canvas = await html2canvas(invoiceDetailRef.current, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-    });
-    const pdf = new jsPDF({
-      unit: "px",
-      format: [canvas.width / 2, canvas.height / 2],
-    });
-    pdf.addImage(
-      canvas.toDataURL("image/png"),
-      "PNG",
-      0,
-      0,
-      canvas.width / 2,
-      canvas.height / 2,
-    );
+    const canvas = await html2canvas(invoiceDetailRef.current, { scale: PDF_CAPTURE_SCALE, useCORS: true, backgroundColor: "#ffffff" });
+    const pdf = createReceiptPdf(jsPDF, canvas);
     const blob = pdf.output("blob");
+    logPdfStats(canvas, blob);
     const filename = `easy-bill-${selectedInvoice.passengerName || "invoice"}.pdf`;
     const file = new File([blob], filename, { type: "application/pdf" });
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({
           title: "Aura Men Billing Service Portal",
-          text: "Journey invoice PDF",
           files: [file],
         });
         setNotice("PDF shared successfully");
@@ -537,7 +574,7 @@ function App() {
       });
       const data = await result.json().catch(() => ({}));
       if (!result.ok) throw new Error(data.error || "Unable to save logo");
-      setLogo(data.logo);
+      setLogo({ ...data.logo, logoData: data.logo.logoInlineData || data.logo.logoData });
       setNotice(data.message || "Logo saved");
     } catch (error) {
       setNotice(error.message === "Failed to fetch" ? "Unable to reach the API. Start it with npm run server." : error.message);
@@ -573,21 +610,24 @@ function App() {
   const saveProfile = async () => {
     setProfileLoading(true);
     try {
-      const result = await fetch(`${API_URL}/profile/save`, { method: "POST", headers: { "Content-Type": "application/json", ...driverHeaders() }, body: JSON.stringify({ driverName: form.driverName, vehicleNumber: form.vehicleNumber }) });
+      const result = await fetch(`${API_URL}/profile/save`, { method: "POST", headers: { "Content-Type": "application/json", ...driverHeaders() }, body: JSON.stringify({ driverName: form.driverName, driverContact: form.driverContact, vehicleNumber: form.vehicleNumber, passengerName: form.passengerName, passengerContact: form.passengerContact }) });
       const data = await result.json();
       if (!result.ok) throw new Error(data.error || "Error saving");
-      setForm((current) => ({ ...current, driverName: data.profile.driverName, vehicleNumber: data.profile.vehicleNumber }));
+      setForm((current) => ({ ...current, ...data.profile }));
       setProfileEditing(false);
       setNotice(data.message || "Saved successfully");
     } catch (error) { setNotice(error.message); } finally { setProfileLoading(false); }
   };
   const clearProfile = async () => {
+    if (!window.confirm("Are you sure you want to clear saved driver/passenger data?")) return;
     setProfileLoading(true);
     try {
       const result = await fetch(`${API_URL}/profile/clear`, { method: "DELETE", headers: driverHeaders() });
       const data = await result.json();
       if (!result.ok) throw new Error(data.error || "Unable to clear saved data");
-      setForm((current) => ({ ...current, driverName: "", vehicleNumber: "" }));
+      localStorage.removeItem("easybill_invoice_draft");
+      setForm((current) => ({ ...current, driverName: "", driverContact: "", vehicleNumber: "", passengerName: "", passengerContact: "" }));
+      setFormResetVersion((current) => current + 1);
       setLogo(null);
       setProfileEditing(true);
       setNotice(data.message || "Saved data cleared");
@@ -595,18 +635,32 @@ function App() {
   };
   const exportImage = async () => {
     if (!receiptRef.current) return null;
-    const { html2canvas } = await loadPdfLibs();
-    return html2canvas(receiptRef.current, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-    });
+    try {
+      await afterAnimationFrame();
+      if (document.fonts?.ready) await document.fonts.ready;
+      await inlineReceiptImages(receiptRef.current);
+      const { html2canvas } = await loadPdfLibs();
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: PDF_CAPTURE_SCALE,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        allowTaint: false,
+        imageTimeout: 0,
+        logging: false,
+      });
+      if (!canvas.width || !canvas.height) throw new Error("Receipt could not be rendered");
+      return canvas;
+    } catch (error) {
+      setNotice(`PDF generation failed: ${error.message}`);
+      return null;
+    }
   };
   const shareFile = async (blob, filename, title) => {
     const file = new File([blob], filename, { type: blob.type });
     if (!navigator.share || !navigator.canShare?.({ files: [file] }))
       return false;
     try {
-      await navigator.share({ title, text: "Aura Men Billing Service Portal invoice", files: [file] });
+      await navigator.share({ title, files: [file] });
       setNotice(`${title} shared successfully`);
       return true;
     } catch (error) {
@@ -618,20 +672,13 @@ function App() {
     const canvas = await exportImage();
     if (!canvas) return;
     const { jsPDF } = await loadPdfLibs();
-    const pdf = new jsPDF({
-      unit: "px",
-      format: [canvas.width / 2, canvas.height / 2],
-    });
-    pdf.addImage(
-      canvas.toDataURL("image/png"),
-      "PNG",
-      0,
-      0,
-      canvas.width / 2,
-      canvas.height / 2,
-    );
+    const pdf = createReceiptPdf(jsPDF, canvas);
     const filename = `easy-bill-${form.passengerName || "receipt"}.pdf`;
-    if (!(await shareFile(pdf.output("blob"), filename, "PDF invoice"))) {
+    const blob = pdf.output("blob");
+    logPdfStats(canvas, blob);
+    if (await shareFile(blob, filename, "PDF invoice")) {
+      closeSavedModal();
+    } else {
       pdf.save(filename);
       setNotice("PDF saved successfully");
     }
@@ -643,6 +690,7 @@ function App() {
       "_blank",
       "noopener,noreferrer",
     );
+    closeSavedModal();
   };
   const buildShareText = useCallback(
     () =>
@@ -667,13 +715,13 @@ function App() {
     const canvas = await exportImage();
     if (!canvas) return;
     const { jsPDF } = await loadPdfLibs();
-    const pdf = new jsPDF({ unit: "px", format: [canvas.width / 2, canvas.height / 2] });
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, canvas.width / 2, canvas.height / 2);
+    const pdf = createReceiptPdf(jsPDF, canvas);
     const blob = pdf.output("blob");
+    logPdfStats(canvas, blob);
     const file = new File([blob], `aura-men-bill-${form.passengerName || "receipt"}.pdf`, { type: "application/pdf" });
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({ title: "Aura Men Billing Service Portal", text: "Journey receipt PDF", files: [file] });
+        await navigator.share({ title: "Aura Men Billing Service Portal", files: [file] });
         setNotice("PDF shared successfully");
         return;
       } catch (error) {
@@ -916,6 +964,7 @@ function App() {
                 qrLoading={qrLoading}
                 logo={logo}
                 saving={saving}
+                invoiceNumber={savedInvoice?.invoiceNumber}
                 onFormChange={syncBillForm}
               />
             )}
@@ -1008,6 +1057,7 @@ function App() {
           invoice={savedInvoice}
           onDownloadPdf={handlePdf}
           onWhatsApp={handleWhatsApp}
+          darkMode={themeMode === "dark"}
         />
       </Suspense>
     </ThemeProvider>
@@ -1296,7 +1346,7 @@ function NewBill({
                 </Typography>
               </Box>
               <Typography className="receipt-foot">
-                Thank you for choosing Aura Men Billing Service Portal
+                Thank you for choosing Aura Men Cab Service
               </Typography>
             </Paper>
           </Box>

@@ -3,14 +3,14 @@ import multer from 'multer'
 import DriverProfile from '../models/DriverProfile.js'
 import requireDriver from '../middleware/requireDriver.js'
 import { uploadLogo } from '../middleware/upload.js'
-import { getPresignedObjectUrl, getObjectKey } from '../utils/b2.js'
+import { getPresignedObjectUrl, getObjectDataUri, getObjectKey } from '../utils/b2.js'
 
 const router = Router()
 
 router.get('/', requireDriver, async (request, response) => {
   try {
-    const profile = await DriverProfile.findOne({ driverId: String(request.user.driverId) }).select('driverName vehicleNumber logoData logoMimeType logoSize updatedAt')
-    return response.json(profile ? await formatProfile(profile) : { driverName: '', vehicleNumber: '', logoData: '', logoMimeType: '', logoSize: 0 })
+    const profile = await DriverProfile.findOne({ driverId: String(request.user.driverId) }).select('driverName driverContact vehicleNumber passengerName passengerContact logoData logoMimeType logoSize updatedAt')
+    return response.json(profile ? await formatProfile(profile) : { driverName: '', driverContact: '', vehicleNumber: '', passengerName: '', passengerContact: '', logoData: '', logoMimeType: '', logoSize: 0 })
   } catch {
     return response.status(500).json({ error: 'Unable to load saved driver data' })
   }
@@ -58,15 +58,18 @@ router.delete('/logo', requireDriver, async (request, response) => {
 
 router.post('/save', requireDriver, async (request, response) => {
   const driverName = String(request.body.driverName || '').trim()
+  const driverContact = String(request.body.driverContact || '').trim()
   const vehicleNumber = String(request.body.vehicleNumber || '').trim().toUpperCase()
+  const passengerName = String(request.body.passengerName || '').trim()
+  const passengerContact = String(request.body.passengerContact || '').trim()
   if (!driverName || !vehicleNumber) return response.status(400).json({ error: 'Driver name and vehicle number are required' })
 
   try {
     const profile = await DriverProfile.findOneAndUpdate(
       { driverId: String(request.user.driverId) },
-      { driverId: String(request.user.driverId), driverName, vehicleNumber },
+      { driverId: String(request.user.driverId), driverName, driverContact, vehicleNumber, passengerName, passengerContact },
       { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true },
-    ).select('driverName vehicleNumber')
+    ).select('driverName driverContact vehicleNumber passengerName passengerContact')
     return response.json({ message: 'Saved successfully', profile })
   } catch (error) {
     if (error.code === 11000) return response.status(409).json({ error: 'Driver profile already exists' })
@@ -89,12 +92,14 @@ async function formatProfile(profile) {
   return {
     ...value,
     logoData: await getPresignedObjectUrl(value.logoData),
+    logoInlineData: await getObjectDataUri(value.logoData, value.logoMimeType),
   }
 }
 
 async function formatLogo(profile) {
   return {
     logoData: await getPresignedObjectUrl(profile.logoData),
+    logoInlineData: await getObjectDataUri(profile.logoData, profile.logoMimeType),
     logoMimeType: profile.logoMimeType || '',
     logoSize: profile.logoSize || 0,
     updatedAt: profile.updatedAt,

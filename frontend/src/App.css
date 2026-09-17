@@ -41,16 +41,18 @@
 .panel-subtitle { margin-top: 3px; }
 .form-panel .MuiTextField-root { background: #fbfcfc; }
 .form-panel .MuiOutlinedInput-root { border-radius: 8px; }
+.optional-label { color: #455a64; font-size: .82em; font-weight: 400; }
 .action-row { padding-top: 4px; }
 .action-row .MuiButton-root { min-height: 44px; text-transform: none; font-weight: 700; border-radius: 7px; }
 .whatsapp-button { color: #218c61; border-color: #9ccdb6; }
 .preview-wrap { padding-top: 4px; }
 .preview-heading { padding: 0 2px 12px; color: #176b87; }
-.receipt { padding: 28px; color: #24434b; border: 1px solid rgba(26,115,232,.10); box-shadow: 0 18px 42px rgba(16, 32, 51, .10); border-radius: 20px; }
+.receipt { box-sizing: border-box; width: 100%; padding: 28px; color: #24434b; border: 1px solid rgba(26,115,232,.10); box-shadow: 0 18px 42px rgba(16, 32, 51, .10); border-radius: 20px; }
+@media (min-width: 900px) { .workspace > .MuiGrid-root:nth-child(2) { flex-basis: calc(58.333333% - 24px) !important; max-width: calc(58.333333% - 24px) !important; } }
 .receipt-brand { align-items: center; min-width: 0; gap: 14px; }
 .receipt-logo { flex: 0 0 auto; width: 64px; height: 64px; object-fit: contain; border-radius: 8px; }
 .default-receipt-logo { display: grid; place-items: center; color: #fff; background: #176b87; }
-.receipt-label { color: #d97745; }
+.receipt-label { color: #a54518; }
 .receipt-title { margin-top: 3px; font-size: 23px; font-weight: 600; }
 .receipt-number { padding: 6px 10px; color: #1A73E8; background: rgba(26,115,232,.08); border-radius: 999px; font: 700 10px 'DM Sans', sans-serif; letter-spacing: 1px; }
 .receipt-divider { margin: 22px 0; border-color: #e5edeb; }
@@ -59,7 +61,7 @@
 .receipt-info { margin-top: 12px; row-gap: 15px; }
 .price-lines { color: #688086; font-size: 13px; }.discount-line { color: #d97745; }
 .total-line { display: flex; justify-content: space-between; align-items: baseline; margin-top: 22px; padding-top: 18px; border-top: 1px solid #d8e7e1; font-size: 15px; font-weight: 700; }.total-amount { color: #1A73E8; font: 700 28px 'Space Grotesk', sans-serif; }
-.receipt-foot { margin-top: 28px; color: #91a3a5; text-align: center; font-size: 11px; }
+.receipt-foot { margin-top: 28px; color: #617478; text-align: center; font-size: 11px; }
 .footer-note { padding: 48px 0 0; color: #8ba0a2; text-align: center; font-size: 11px; letter-spacing: .4px; }
 .app-notice { top: 16px; right: 16px; }
 .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 520px)); gap: 20px; align-items: start; }
@@ -91,6 +93,15 @@
 .theme-dark.auth-shell { background: radial-gradient(circle at 10% 10%, rgba(97,231,212,.12), transparent 34%), #071216; }.theme-dark.auth-shell .auth-card { color: #edfdf9; background: rgba(17,31,35,.9); border-color: rgba(97,231,212,.2); }.theme-dark.auth-shell .auth-title { color: #edfdf9; }.theme-dark.auth-shell .auth-copy { color: #a6bfbb; }.theme-dark.auth-shell .MuiInputLabel-root, .theme-dark.auth-shell .MuiOutlinedInput-input { color: #edfdf9 !important; }.theme-dark.auth-shell .MuiOutlinedInput-notchedOutline { border-color: rgba(166,191,187,.42) !important; }.theme-dark.auth-shell .MuiButton-text { color: #61e7d4; }
 .theme-dark.auth-shell .auth-card { background: linear-gradient(145deg, rgba(18,38,42,.92), rgba(7,24,28,.88)); box-shadow: 0 24px 70px rgba(0,0,0,.36), 0 0 0 1px rgba(97,231,212,.05); backdrop-filter: blur(16px); }
 .theme-dark.auth-shell .auth-card .MuiInputAdornment-root { color: #8dbbb4; }.theme-dark.auth-shell .auth-card .MuiIconButton-root { color: #a6bfbb; }
+.saved-invoice-modal-dark { color: #f5f5f5 !important; background: #111f23 !important; }
+.saved-invoice-modal-dark .receipt-meta { color: #b8c8cc !important; }
+.saved-invoice-modal-dark .receipt-value { color: #f5f5f5 !important; font-weight: 600; }
+.saved-invoice-modal-dark .MuiDialogTitle-root, .saved-invoice-modal-dark .MuiDialogContent-root, .saved-invoice-modal-dark .MuiDialogActions-root { color: #f5f5f5; }
+.saved-invoice-modal-dark .MuiDivider-root { border-color: rgba(184, 200, 204, .30); }
+.theme-dark .form-panel .MuiInputBase-input.Mui-disabled, .theme-dark .form-panel .MuiInputBase-input { color: #f5f5f5 !important; -webkit-text-fill-color: #f5f5f5 !important; opacity: 1; }
+.theme-dark .form-panel .MuiInputBase-input::placeholder { color: #b8c8cc !important; opacity: .8; }
+.theme-dark .form-panel .MuiInputLabel-root { color: #b8c8cc !important; }
+.theme-dark .optional-label { color: #b8c8cc; }
 .theme-light .app-shell { background: #f9fafb; }
 .theme-light .topbar { border-color: #e5e7eb; }
 .theme-light .intro { position: relative; overflow: hidden; margin: 20px 0 28px; padding: 34px 28px; border: 1px solid rgba(13,148,136,.12); border-radius: 20px; background: linear-gradient(110deg, rgba(204,251,241,.88), rgba(255,228,230,.7) 54%, rgba(254,249,195,.82)); box-shadow: 0 4px 20px -2px rgba(0,0,0,.05); }

@@ -22,9 +22,10 @@ export default function SavedInvoiceModal({
   invoice,
   onDownloadPdf,
   onWhatsApp,
+  darkMode,
 }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth fullScreen>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth fullScreen slotProps={{ paper: { className: darkMode ? "saved-invoice-modal saved-invoice-modal-dark" : "saved-invoice-modal" } }}>
       <DialogTitle sx={{ pr: 6 }}>
         Invoice saved
         <Button
@@ -60,6 +61,7 @@ export default function SavedInvoiceModal({
               <Typography className="receipt-value">
                 {invoice?.passengerName || "Not added"}
               </Typography>
+              <Typography className="receipt-meta">CONTACT: {invoice?.passengerContact || "Not added"}</Typography>
             </Box>
             <Grid container spacing={1.5}>
               <Grid size={6}>
@@ -67,6 +69,7 @@ export default function SavedInvoiceModal({
                 <Typography className="receipt-value">
                   {invoice?.driverName || "Not added"}
                 </Typography>
+                <Typography className="receipt-meta">{invoice?.driverContact || "Not added"}</Typography>
               </Grid>
               <Grid size={6}>
                 <Typography className="receipt-meta">VEHICLE</Typography>

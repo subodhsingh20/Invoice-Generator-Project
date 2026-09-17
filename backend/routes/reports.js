@@ -10,7 +10,7 @@ router.get('/', requireDriver, async (request, response) => {
 
     const [summary] = await Invoice.aggregate([
       { $match: filter },
-      { $group: { _id: null, invoiceCount: { $sum: 1 }, totalFare: { $sum: '$totals.baseFare' }, totalGst: { $sum: '$totals.gstAmount' }, totalDiscount: { $sum: '$totals.discountAmount' }, totalCollected: { $sum: '$totals.total' } } },
+      { $group: { _id: null, invoiceCount: { $sum: 1 }, totalFare: { $sum: '$totals.baseFare' }, totalDiscount: { $sum: '$totals.discountAmount' }, totalCollected: { $sum: '$totals.total' } } },
     ])
 
     const [daily, weekly, monthly] = await Promise.all([
@@ -24,7 +24,6 @@ router.get('/', requireDriver, async (request, response) => {
       to: request.query.to || null,
       invoiceCount: summary?.invoiceCount || 0,
       totalFare: summary?.totalFare || 0,
-      totalGst: summary?.totalGst || 0,
       totalDiscount: summary?.totalDiscount || 0,
       totalCollected: summary?.totalCollected || 0,
       daily,

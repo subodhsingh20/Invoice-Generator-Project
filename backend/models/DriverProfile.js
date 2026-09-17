@@ -4,7 +4,10 @@ const driverProfileSchema = new mongoose.Schema(
   {
     driverId: { type: String, required: true },
     driverName: { type: String, required: true, trim: true },
+    driverContact: { type: String, trim: true, default: '' },
     vehicleNumber: { type: String, required: true, trim: true, uppercase: true, unique: true },
+    passengerName: { type: String, trim: true, default: '' },
+    passengerContact: { type: String, trim: true, default: '' },
     logoData: { type: String, default: '' },
     logoMimeType: { type: String, enum: ['image/png', 'image/jpeg', 'image/svg+xml', ''], default: '' },
     logoSize: { type: Number, default: 0, max: 2 * 1024 * 1024 },

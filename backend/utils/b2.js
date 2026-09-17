@@ -55,6 +55,14 @@ export async function getPresignedObjectUrl(key, expiresIn = 3600) {
   )
 }
 
+export async function getObjectDataUri(key, mimeType = 'image/png') {
+  if (!key) return ''
+  if (String(key).startsWith('data:')) return String(key)
+  const object = await s3Client.send(new GetObjectCommand({ Bucket: b2Bucket, Key: normalizeObjectKey(key) }))
+  const bytes = await object.Body.transformToByteArray()
+  return `data:${mimeType};base64,${Buffer.from(bytes).toString('base64')}`
+}
+
 function normalizeObjectKey(value) {
   const stringValue = String(value)
   if (!/^https?:\/\//i.test(stringValue)) return stringValue

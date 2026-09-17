@@ -249,7 +249,7 @@ function Dashboard({ reports, filters, setFilters, loadReports, loading }) {
           icon={AccountBalanceWalletOutlined}
           label="Average fare"
           value={averageFare}
-          caption="per trip, GST included"
+          caption="per trip"
         />
       </Grid>
 

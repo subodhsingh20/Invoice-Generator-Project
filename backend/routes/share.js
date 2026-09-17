@@ -61,13 +61,14 @@ router.get('/:token', async (request, response) => {
 function formatSharedInvoice(invoice) {
   return {
     passengerName: invoice.passengerName,
+    passengerContact: invoice.passengerContact,
     driverName: invoice.driverName,
+    driverContact: invoice.driverContact,
     vehicleNumber: invoice.vehicleNumber,
     pickup: invoice.pickup,
     drop: invoice.drop,
     distance: invoice.distance,
     fare: invoice.fare,
-    gst: invoice.gst,
     discount: invoice.discount,
     paymentMode: invoice.paymentMode || 'Cash',
     totals: invoice.totals,
