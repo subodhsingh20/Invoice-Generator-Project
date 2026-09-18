@@ -11,6 +11,9 @@ import reportRoutes from './routes/reports.js'
 import shareRoutes from './routes/share.js'
 import profileRoutes from './routes/profile.js'
 import qrRoutes from './routes/qr.js'
+import earningsRoutes from './routes/earnings.js'
+import { archiveExpiredInvoices } from './utils/earningHistory.js'
+import Invoice from './models/Invoice.js'
 
 const app = express()
 const port = Number(process.env.PORT) || 5000
@@ -48,7 +51,9 @@ app.get('/', (request, response) => {
 })
 app.get('/health', (request, response) => response.status(200).send('OK'))
 app.use('/invoice', invoiceRoutes)
+app.use('/api/invoices', invoiceRoutes)
 app.use('/reports', reportRoutes)
+app.use('/earnings', earningsRoutes)
 app.use('/share', shareRoutes)
 
 app.use((request, response) => {
@@ -72,7 +77,14 @@ if (!mongoUri) {
 } else {
   mongoose
     .connect(mongoUri)
-    .then(() => app.listen(port, () => console.log(`Invoice API listening on port ${port}`)))
+    .then(async () => {
+      await Invoice.collection.dropIndex('expiresAt_1').catch((error) => {
+        if (error.codeName !== 'IndexNotFound') throw error
+      })
+      await archiveExpiredInvoices()
+      setInterval(() => archiveExpiredInvoices().catch((error) => console.error('Earning history archive failed:', error.message)), 60 * 60 * 1000)
+      app.listen(port, () => console.log(`Invoice API listening on port ${port}`))
+    })
     .catch((error) => {
       console.error('MongoDB connection failed:', error.message)
       process.exitCode = 1

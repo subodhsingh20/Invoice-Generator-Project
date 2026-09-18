@@ -28,8 +28,10 @@ router.get('/:id/pdf', requireDriver, async (request, response) => {
     doc.text(`Driver: ${invoice.driverName || 'Not added'}`)
     doc.text(`Driver contact: ${invoice.driverContact || 'Not added'}`)
     doc.text(`Vehicle: ${invoice.vehicleNumber || 'Not added'}`)
-    doc.text(`From: ${invoice.pickup || 'Not added'}`)
-    doc.text(`To: ${invoice.drop || 'Not added'}`)
+    doc.text(`Trip type: ${invoice.tripType || 'One-Way'}`)
+    doc.text(`Pickup: ${invoice.pickupLocation || invoice.pickup || 'Not added'}`)
+    if (invoice.tripType === 'Round-Trip') doc.text(`Destination: ${invoice.destinationLocation || invoice.destination || 'Not added'}`)
+    doc.text(`Drop: ${invoice.dropLocation || invoice.drop || 'Not added'}`)
     doc.text(`Distance: ${invoice.distance} km`)
     doc.text(`Payment: ${invoice.paymentMode || 'Cash'}`)
     doc.text(`Base fare: ${invoice.fare}`)
@@ -86,6 +88,12 @@ router.post('/', requireDriver, async (request, response) => {
     if (missingFields.length > 0) {
       return response.status(400).json({ error: 'Missing required invoice fields', fields: missingFields })
     }
+    const tripType = normalizeTripType(request.body.tripType)
+    if (!tripType) return response.status(400).json({ error: 'Invalid trip type', fields: ['tripType'] })
+    const destination = String(request.body.destination || request.body.destinationLocation || '').trim()
+    if (tripType === 'Round-Trip' && !destination) {
+      return response.status(400).json({ error: 'Destination location is required for round trips', fields: ['destination'] })
+    }
     if (Number(request.body.discount || 0) > Number(request.body.fare || 0)) {
       return response.status(400).json({ error: 'Discount cannot exceed base fare', fields: ['discount'] })
     }
@@ -94,12 +102,20 @@ router.post('/', requireDriver, async (request, response) => {
     const invoiceNumber = (await Invoice.countDocuments({ driverId: String(request.user.driverId) })) + 1
     const invoice = await Invoice.create({
       ...request.body,
+      tripType,
+      pickupLocation: request.body.pickup,
+      destination,
+      destinationLocation: destination,
+      dropLocation: request.body.drop,
+      baseFare: Number(request.body.fare),
+      totalPayable: totals.total,
       driverId: String(request.user.driverId),
       invoiceNumber,
       paymentMode: request.body.paymentMode || 'Cash',
       totals,
     })
-    return response.status(201).json(formatInvoice(invoice))
+    const formattedInvoice = formatInvoice(invoice)
+    return response.status(201).json({ ...formattedInvoice, invoice: formattedInvoice, message: 'Invoice saved' })
   } catch (error) {
     if (error.name === 'ValidationError') {
       return response.status(400).json({ error: 'Invalid invoice data', details: error.message })
@@ -163,12 +179,17 @@ function formatInvoice(invoice) {
     driverContact: value.driverContact,
     vehicleNumber: value.vehicleNumber,
     pickup: value.pickup,
-    pickupLocation: value.pickup,
+    pickupLocation: value.pickupLocation || value.pickup,
+    destination: value.destination || value.destinationLocation || '',
+    destinationLocation: value.destination || value.destinationLocation || '',
     drop: value.drop,
     dropLocation: value.drop,
+    tripType: normalizeTripType(value.tripType) || 'One-Way',
     distance: value.distance,
     fare: value.fare,
+    baseFare: value.baseFare ?? value.fare,
     discount: value.discount,
+    totalPayable: value.totalPayable ?? value.totals?.total,
     paymentMode: value.paymentMode || 'Cash',
     totals: value.totals,
     total: value.totals?.total,
@@ -178,6 +199,12 @@ function formatInvoice(invoice) {
     updatedAt: value.updatedAt,
     date: value.createdAt,
   }
+}
+
+function normalizeTripType(value) {
+  if (value === 'One Way' || value === 'One-Way') return 'One-Way'
+  if (value === 'Round Trip' || value === 'Round-Trip') return 'Round-Trip'
+  return null
 }
 
 function escapeRegex(value) {

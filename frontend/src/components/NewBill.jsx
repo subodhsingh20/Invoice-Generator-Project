@@ -15,9 +15,12 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import SaveOutlined from "@mui/icons-material/SaveOutlined";
+import DirectionsCarOutlined from "@mui/icons-material/DirectionsCarOutlined";
+import SyncAltOutlined from "@mui/icons-material/SyncAltOutlined";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import PageIntro from "./PageIntro.jsx";
-import ReceiptBrand from "./ReceiptBrand.jsx";
-import { money } from "../utils/format.js";
+import InvoicePreview from "./InvoicePreview.jsx";
 
 const upiQrMode = "UPI QR";
 const draftKey = "easybill_invoice_draft";
@@ -30,16 +33,21 @@ const billSchema = z.object({
   driverContact: phone,
   vehicleNumber: z.string().trim().min(1, "Vehicle number is required"),
   pickup: z.string().trim().min(1, "Pickup location is required"),
+  destination: z.string().trim(),
   drop: z.string().trim().min(1, "Drop location is required"),
   distance: z.coerce.number().finite().nonnegative("Distance cannot be negative"),
   fare: z.coerce.number().finite().nonnegative("Fare cannot be negative"),
   discount: z.coerce.number().finite().nonnegative("Discount cannot be negative"),
   paymentMode: z.enum(["Cash", "Card", upiQrMode]),
-}).refine((value) => value.discount <= value.fare, { path: ["discount"], message: "Discount cannot exceed base fare" });
+  tripType: z.enum(["One-Way", "Round-Trip"]),
+}).refine((value) => value.discount <= value.fare, { path: ["discount"], message: "Discount cannot exceed base fare" })
+  .refine((value) => value.tripType !== "Round-Trip" || value.destination.trim(), { path: ["destination"], message: "Destination location is required for round trips" });
 
 function readDraft() {
   try {
-    return JSON.parse(localStorage.getItem(draftKey) || "null");
+    const draft = JSON.parse(localStorage.getItem(draftKey) || "null");
+    if (!draft) return null;
+    return { ...draft, tripType: draft.tripType === "One Way" ? "One-Way" : draft.tripType === "Round Trip" ? "Round-Trip" : draft.tripType || "Round-Trip" };
   } catch {
     return null;
   }
@@ -61,6 +69,7 @@ function NewBill({
   const canSave = Boolean(
     watchedForm.passengerName?.trim() && watchedForm.driverName?.trim() &&
     watchedForm.vehicleNumber?.trim() && watchedForm.pickup?.trim() &&
+    (watchedForm.tripType !== "Round-Trip" || watchedForm.destination?.trim()) &&
     watchedForm.drop?.trim() && String(watchedForm.distance ?? "").trim() &&
     String(watchedForm.fare ?? "").trim(),
   );
@@ -112,8 +121,17 @@ function NewBill({
               <Divider />
               <Box><Typography component="h2" className="panel-title">Trip details</Typography><Typography className="panel-subtitle">Where this journey begins and ends</Typography></Box>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 6 }}>{renderField("pickup", "Pickup location", { placeholder: "e.g. Airport terminal 2" })}</Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>{renderField("drop", "Drop location", { placeholder: "e.g. City centre" })}</Grid>
+                <Grid size={12}>
+                  <Controller name="tripType" control={control} render={({ field }) => (
+                    <ToggleButtonGroup exclusive value={field.value || "One-Way"} onChange={(_, value) => value && field.onChange(value)} className="trip-type-toggle" aria-label="Trip type">
+                      <ToggleButton value="One-Way"><DirectionsCarOutlined /> One-Way</ToggleButton>
+                      <ToggleButton value="Round-Trip"><SyncAltOutlined /> Round-Trip</ToggleButton>
+                    </ToggleButtonGroup>
+                  )} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: watchedForm.tripType === "Round-Trip" ? 4 : 6 }}>{renderField("pickup", "Pickup location", { placeholder: "e.g. Ahmedabad Airport" })}</Grid>
+                {watchedForm.tripType === "Round-Trip" && <Grid size={{ xs: 12, sm: 4 }} className="trip-field-enter">{renderField("destination", "Destination location", { placeholder: "e.g. Allencera Tiles" })}</Grid>}
+                <Grid size={{ xs: 12, sm: watchedForm.tripType === "Round-Trip" ? 4 : 6 }}>{renderField("drop", "Drop location", { placeholder: "e.g. Ahmedabad Airport" })}</Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>{renderField("distance", "Distance", { type: "number", slotProps: { input: { endAdornment: <InputAdornment position="end">km</InputAdornment> } } })}</Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>{renderField("fare", "Base fare", { type: "number", slotProps: { input: { startAdornment: <InputAdornment position="start">₹</InputAdornment> } } })}</Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>{renderField("discount", "Discount (₹)", { type: "number", placeholder: "0", slotProps: { input: { startAdornment: <InputAdornment position="start">₹</InputAdornment> } } })}</Grid>
@@ -123,13 +141,10 @@ function NewBill({
             </Stack>
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}><Box className="preview-wrap"><Typography className="section-kicker preview-heading">LIVE PREVIEW</Typography><Paper ref={receiptRef} className="receipt" elevation={0}><Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start" }}><Box><ReceiptBrand logo={logo} title="Receipt" titleVariant="h3" /><Typography className="receipt-meta">Safe rides, simple billing</Typography></Box><Box className="receipt-number">#RB-{String(invoiceNumber || 1).padStart(3, "0")}</Box></Stack><Typography className="receipt-meta" sx={{ mt: 1 }}>{new Date().toLocaleString("en-IN")}</Typography><Divider className="receipt-divider" /><Typography className="receipt-label">TRIP DETAILS</Typography><Box className="route"><Box><Typography className="receipt-meta">FROM</Typography><Typography className="receipt-value">{watchedForm.pickup || "Pickup location"}</Typography></Box><Box className="route-arrow">→</Box><Box className="route-end"><Typography className="receipt-meta">TO</Typography><Typography className="receipt-value">{watchedForm.drop || "Drop location"}</Typography></Box></Box><Grid container spacing={2} className="receipt-info"><Info label="VEHICLE" value={watchedForm.vehicleNumber || "Not added"} /><Info label="DISTANCE" value={watchedForm.distance ? `${watchedForm.distance} km` : "Not added"} /></Grid><Divider className="receipt-divider" /><Typography className="receipt-label">CONTACT DETAILS</Typography><Grid container spacing={2} className="receipt-info"><Info label="PASSENGER" value={`${watchedForm.passengerName || "Not added"}${watchedForm.passengerContact ? ` · ${watchedForm.passengerContact}` : ""}`} /><Info label="DRIVER" value={`${watchedForm.driverName || "Not added"}${watchedForm.driverContact ? ` · ${watchedForm.driverContact}` : ""}`} /></Grid><Typography className="receipt-meta" sx={{ mt: 2 }}>PAID VIA: {watchedForm.paymentMode || "Cash"}</Typography><Divider className="receipt-divider" /><Stack spacing={1} className="price-lines"><Price label="Base fare" value={money(totals.fare)} /><Price label="Discount" value={`−${money(totals.discount)}`} className="discount-line" /></Stack><Box className="total-line"><Typography>Total Due</Typography><Typography className="total-amount">{money(totals.total)}</Typography></Box><Typography className="receipt-foot">Thank you for choosing Aura Men Cab Service<br /></Typography></Paper></Box></Grid>
+        <InvoicePreview receiptRef={receiptRef} logo={logo} invoiceNumber={invoiceNumber} form={watchedForm} totals={totals} />
       </Grid>
     </>
   );
 }
-
-const Info = memo(function Info({ label, value }) { return <Grid size={{ xs: 12, sm: 6 }}><Typography className="receipt-meta">{label}</Typography><Typography className="receipt-value">{value}</Typography></Grid>; });
-const Price = memo(function Price({ label, value, className = "" }) { return <Stack direction="row" sx={{ justifyContent: "space-between" }} className={className}><Typography>{label}</Typography><Typography>{value}</Typography></Stack>; });
 
 export default memo(NewBill);

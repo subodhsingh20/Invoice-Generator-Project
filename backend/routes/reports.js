@@ -37,7 +37,16 @@ router.get('/', requireDriver, async (request, response) => {
 
 function buildReportFilter(query, driverId) {
   const filter = { driverId: String(driverId) }
-  if (query.from || query.to) {
+  if (query.month && query.year) {
+    const month = Number(query.month)
+    const year = Number(query.year)
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year)) {
+      const error = new Error('Invalid month or year')
+      error.statusCode = 400
+      throw error
+    }
+    filter.createdAt = { $gte: new Date(Date.UTC(year, month - 1, 1)), $lt: new Date(Date.UTC(year, month, 1)) }
+  } else if (query.from || query.to) {
     filter.createdAt = {}
     if (query.from) filter.createdAt.$gte = parseDate(query.from, 'Invalid from date')
     if (query.to) {

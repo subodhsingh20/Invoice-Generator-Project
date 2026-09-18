@@ -80,11 +80,13 @@ const initialForm = {
   driverContact: "",
   vehicleNumber: "",
   pickup: "",
+  destination: "",
   drop: "",
   distance: "",
   fare: "",
   discount: "0",
   paymentMode: "Cash",
+  tripType: "Round-Trip",
 };
 // html2canvas and jspdf are large libraries. Importing them dynamically, on
 // the first user action that needs them, keeps them off the critical path.
@@ -195,7 +197,8 @@ function App() {
     weekly: [],
     monthly: [],
   });
-  const [filters, setFilters] = useState({ from: "", to: "" });
+  const [filters, setFilters] = useState({ from: "", to: "", month: new Date().getMonth() + 1, year: new Date().getFullYear() });
+  const [earningHistory, setEarningHistory] = useState({ monthly: [], yearly: [] });
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [savedInvoice, setSavedInvoice] = useState(null);
@@ -307,11 +310,13 @@ function App() {
     }
   }, []);
   const loadReports = useCallback(async () => {
+    if (!filters.month || !filters.year) {
+      setNotice("Select both a month and year to search earnings.");
+      return;
+    }
     setLoading(true);
     try {
-      const query = new URLSearchParams(
-        Object.entries(filters).filter(([, value]) => value),
-      );
+      const query = new URLSearchParams({ month: filters.month, year: filters.year });
       const result = await fetch(`${API_URL}/reports?${query}`, {
         headers: driverHeaders(),
       });
@@ -325,6 +330,15 @@ function App() {
       setLoading(false);
     }
   }, [filters]);
+  const loadEarningHistory = useCallback(async () => {
+    try {
+      const result = await fetch(`${API_URL}/earnings/history`, { headers: driverHeaders() });
+      if (!result.ok) throw new Error();
+      setEarningHistory(await result.json());
+    } catch {
+      setNotice("Unable to load earning history. Check that the API is running.");
+    }
+  }, []);
   const changeView = (nextView) => {
     setMenuOpen(false);
     // Non-urgent update: React yields the main thread while the lazy chunk
@@ -334,7 +348,10 @@ function App() {
       setView(nextView);
     });
     if (nextView === "invoices") loadInvoices();
-    if (nextView === "dashboard") loadReports();
+    if (nextView === "dashboard") {
+      loadReports();
+      loadEarningHistory();
+    }
     if (nextView === "settings") loadQr();
   };
   const openMobileMenu = (event) => {
@@ -363,6 +380,7 @@ function App() {
       ['driverName', 'Driver name'],
       ['vehicleNumber', 'Vehicle number'],
       ['pickup', 'Pickup location'],
+      ...(form.tripType === 'Round-Trip' ? [['destination', 'Destination location']] : []),
       ['drop', 'Drop location'],
       ['distance', 'Distance'],
       ['fare', 'Fare'],
@@ -390,7 +408,16 @@ function App() {
         const error = await result.json().catch(() => ({}));
         throw new Error(error.fields?.join(', ') || error.details || error.error || 'Unable to save invoice');
       }
-      const invoice = await result.json();
+      const payload = await result.json();
+      const invoice = payload.invoice || payload;
+      setForm((current) => ({
+        ...current,
+        ...invoice,
+        pickup: invoice.pickup || invoice.pickupLocation || current.pickup,
+        destination: invoice.destination || invoice.destinationLocation || current.destination,
+        drop: invoice.drop || invoice.dropLocation || current.drop,
+        tripType: invoice.tripType === 'One Way' ? 'One-Way' : invoice.tripType === 'Round Trip' ? 'Round-Trip' : invoice.tripType || current.tripType,
+      }));
       setSavedInvoice(invoice);
       setIsModalOpen(true);
       setNotice("Invoice saved successfully!");
@@ -993,6 +1020,9 @@ function App() {
                 filters={filters}
                 setFilters={setFilters}
                 loadReports={loadReports}
+                earningHistory={earningHistory}
+                loadEarningHistory={loadEarningHistory}
+                onNotice={setNotice}
                 loading={loading}
               />
             )}
