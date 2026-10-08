@@ -149,3 +149,17 @@
 	.aura-thanks-badge small { font-size: 8px; line-height: 1.25; }
 	.aura-thanks-badge b { font-size: 11px; letter-spacing: 2px; }
 }
+
+.aura-fare-row { grid-template-columns: minmax(0, 1fr); }
+.aura-thanks-badge { width: min(100%, 180px); margin: 14px auto 0; }
+@media (max-width: 600px) {
+	.aura-thanks-badge { width: min(100%, 150px); margin-top: 14px; }
+}
+
+.aura-info-grid-single { grid-template-columns: minmax(0, 1fr); }
+.aura-bottom-grid.aura-single-section { grid-template-columns: minmax(0, 1fr); }
+.aura-invoice.aura-invoice-a4 { box-sizing: border-box; width: 794px !important; min-height: 1123px; padding: 32px; border-radius: 0; box-shadow: none; }
+.aura-invoice.aura-invoice-a4 .aura-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.aura-invoice.aura-invoice-a4 .aura-info-grid-single,
+.aura-invoice.aura-invoice-a4 .aura-bottom-grid.aura-single-section { grid-template-columns: minmax(0, 1fr); }
+.a4-export-capture.invoice-detail { box-sizing: border-box; width: 794px !important; min-height: 1123px; padding: 32px; background: #fff; }

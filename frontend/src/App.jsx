@@ -117,6 +117,9 @@ const afterAnimationFrame = () =>
   new Promise((resolve) => requestAnimationFrame(resolve));
 const PDF_CAPTURE_SCALE = 2;
 const PDF_JPEG_QUALITY = 0.85;
+const A4_CAPTURE_WIDTH = 794;
+const A4_CAPTURE_HEIGHT = 1123;
+const A4_MARGIN_MM = 10;
 
 const waitForImage = (image) => new Promise((resolve, reject) => {
   if (image.complete) {
@@ -150,17 +153,57 @@ const inlineReceiptImages = async (element) => {
   }));
 };
 
+const captureA4Canvas = async (element, html2canvas) => {
+  if (document.fonts?.ready) await document.fonts.ready;
+  const clone = element.cloneNode(true);
+  clone.classList.add("a4-export-capture");
+  if (clone.classList.contains("aura-invoice")) clone.classList.add("aura-invoice-a4");
+  const stage = document.createElement("div");
+  Object.assign(stage.style, {
+    position: "fixed",
+    inset: "0 auto auto 0",
+    width: `${A4_CAPTURE_WIDTH}px`,
+    visibility: "hidden",
+    pointerEvents: "none",
+    zIndex: "-1",
+  });
+  clone.style.visibility = "visible";
+  stage.appendChild(clone);
+  document.body.appendChild(stage);
+  try {
+    await inlineReceiptImages(clone);
+    const canvas = await html2canvas(clone, {
+      scale: PDF_CAPTURE_SCALE,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: false,
+      imageTimeout: 0,
+      logging: false,
+      windowWidth: A4_CAPTURE_WIDTH,
+      windowHeight: A4_CAPTURE_HEIGHT,
+      scrollX: 0,
+      scrollY: 0,
+    });
+    if (!canvas.width || !canvas.height) throw new Error("Receipt could not be rendered");
+    return canvas;
+  } finally {
+    stage.remove();
+  }
+};
+
 const createReceiptPdf = (jsPDF, canvas) => {
-  const width = canvas.width / PDF_CAPTURE_SCALE;
-  const height = canvas.height / PDF_CAPTURE_SCALE;
   const pdf = new jsPDF({
     orientation: "portrait",
-    unit: "px",
-    format: [width, height],
-    hotfixes: ["px_scaling"],
+    unit: "mm",
+    format: "a4",
   });
   const image = canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
-  pdf.addImage(image, "JPEG", 0, 0, width, height, undefined, "FAST");
+  const pageWidth = 210 - A4_MARGIN_MM * 2;
+  const pageHeight = 297 - A4_MARGIN_MM * 2;
+  const fit = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+  const width = canvas.width * fit;
+  const height = canvas.height * fit;
+  pdf.addImage(image, "JPEG", (210 - width) / 2, (297 - height) / 2, width, height, undefined, "FAST");
   return pdf;
 };
 
@@ -494,7 +537,7 @@ function App() {
   const downloadInvoicePdf = async () => {
     if (!invoiceDetailRef.current || !selectedInvoice) return;
     const { html2canvas, jsPDF } = await loadPdfLibs();
-    const canvas = await html2canvas(invoiceDetailRef.current, { scale: PDF_CAPTURE_SCALE, useCORS: true, backgroundColor: "#ffffff" });
+    const canvas = await captureA4Canvas(invoiceDetailRef.current, html2canvas);
     const pdf = createReceiptPdf(jsPDF, canvas);
     logPdfStats(canvas, pdf.output("blob"));
     pdf.save(`easy-bill-${selectedInvoice.passengerName || "invoice"}.pdf`);
@@ -503,7 +546,7 @@ function App() {
   const shareInvoicePdf = useCallback(async () => {
     if (!invoiceDetailRef.current || !selectedInvoice) return;
     const { html2canvas, jsPDF } = await loadPdfLibs();
-    const canvas = await html2canvas(invoiceDetailRef.current, { scale: PDF_CAPTURE_SCALE, useCORS: true, backgroundColor: "#ffffff" });
+    const canvas = await captureA4Canvas(invoiceDetailRef.current, html2canvas);
     const pdf = createReceiptPdf(jsPDF, canvas);
     const blob = pdf.output("blob");
     logPdfStats(canvas, blob);
@@ -664,19 +707,8 @@ function App() {
     if (!receiptRef.current) return null;
     try {
       await afterAnimationFrame();
-      if (document.fonts?.ready) await document.fonts.ready;
-      await inlineReceiptImages(receiptRef.current);
       const { html2canvas } = await loadPdfLibs();
-      const canvas = await html2canvas(receiptRef.current, {
-        scale: PDF_CAPTURE_SCALE,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: false,
-        imageTimeout: 0,
-        logging: false,
-      });
-      if (!canvas.width || !canvas.height) throw new Error("Receipt could not be rendered");
-      return canvas;
+      return await captureA4Canvas(receiptRef.current, html2canvas);
     } catch (error) {
       setNotice(`PDF generation failed: ${error.message}`);
       return null;

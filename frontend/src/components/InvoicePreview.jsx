@@ -12,6 +12,7 @@ import FlightTakeoffOutlined from "@mui/icons-material/FlightTakeoffOutlined";
 import LocationOnOutlined from "@mui/icons-material/LocationOnOutlined";
 import PhoneOutlined from "@mui/icons-material/PhoneOutlined";
 import CheckCircleOutlined from "@mui/icons-material/CheckCircleOutlined";
+import DirectionsCarOutlined from "@mui/icons-material/DirectionsCarOutlined";
 import ReceiptBrand from "./ReceiptBrand.jsx";
 import { money } from "../utils/format.js";
 
@@ -47,9 +48,8 @@ export default function InvoicePreview({ receiptRef, logo, invoiceNumber, form, 
           </Box>
           <Typography className="aura-tagline">Safe <span>•</span> Reliable <span>•</span> Comfortable</Typography>
           <Typography className="aura-service-line"><LocationOnOutlined /> Service Available All Over Gujarat</Typography>
-          <Box className="aura-info-grid">
+          <Box className="aura-info-grid aura-info-grid-single">
             <InfoBox title="BILL TO" icon={<PhoneOutlined />}><strong>{passenger}</strong><span><PhoneOutlined /> {form.passengerContact || "Contact not added"}</span></InfoBox>
-            <InfoBox title="FROM" icon={<ApartmentOutlined />}><strong>Aura Men Cab Service</strong><span><PhoneOutlined /> {form.driverContact || "Contact not added"}</span><span><EmailOutlined /> theauramencabservice@gmail.com</span><span><LocationOnOutlined /> Service Available All Over Gujarat</span></InfoBox>
           </Box>
           <Box className="aura-section-heading">TRIP DETAILS</Box>
           <Box className={roundTrip ? "aura-route" : "aura-route aura-one-way"}>
@@ -59,8 +59,11 @@ export default function InvoicePreview({ receiptRef, logo, invoiceNumber, form, 
             {roundTrip && <><span className="aura-route-line">•••••••••➜</span><RoutePoint icon={<ApartmentOutlined />} label={form.drop || "Drop location"} /></>}
             <Box className="aura-trip-options"><label><Checkbox checked={!roundTrip} readOnly /> One-Way</label><label><Checkbox checked={roundTrip} readOnly /> Round-Trip</label></Box>
           </Box>
-          <Box className="aura-fare-row"><Box className="aura-fare-wrap"><Box className="aura-section-heading">FARE BREAKDOWN <span>AMOUNT (₹)</span></Box><Box className="aura-fare-table"><Price label="Total Fare" value={money(totals.fare)} /><Price label="Discount" value={`- ${money(totals.discount)}`} className="aura-discount" /><Box className="aura-total"><strong>TOTAL PAYABLE</strong><strong>{money(totals.total)}</strong></Box><Box className="aura-words"><strong>Amount in Words:</strong><span>{amountInWords(totals.total)}</span></Box></Box></Box><Box className="aura-thanks-badge"><span>☆</span><strong>Thank You!</strong><small>FOR CHOOSING<br />US</small><b>★ ★ ★</b></Box></Box>
-          <Box className="aura-bottom-grid"><Box className="aura-note-box"><Box className="aura-section-heading">NOTES</Box><p><CheckCircleOutlined /> Thank you for choosing Aura Men Cab Service.</p><p><CheckCircleOutlined /> We look forward to serving you again.</p><p><CheckCircleOutlined /> Drive Safe. Travel Safe.</p></Box><Box className="aura-note-box"><Box className="aura-section-heading">PAYMENT METHOD</Box><p className="aura-payment"><AccountBalanceWalletOutlined /> {form.paymentMode || "Cash"}</p><Divider /><small>Thank you for your payment!</small></Box></Box>
+          <Box className="aura-fare-row"><Box className="aura-fare-wrap"><Box className="aura-section-heading">FARE BREAKDOWN <span>AMOUNT (₹)</span></Box><Box className="aura-fare-table"><Price label="Total Fare" value={money(totals.fare)} /><Price label="Discount" value={`- ${money(totals.discount)}`} className="aura-discount" /><Box className="aura-total"><strong>TOTAL PAYABLE</strong><strong>{money(totals.total)}</strong></Box><Box className="aura-words"><strong>Amount in Words:</strong><span>{amountInWords(totals.total)}</span></Box></Box></Box></Box>
+          <Box className="aura-bottom-grid aura-single-section"><Box className="aura-note-box"><Box className="aura-section-heading">PAYMENT METHOD</Box><p className="aura-payment"><AccountBalanceWalletOutlined /> {form.paymentMode || "Cash"}</p><Divider /><small>Thank you for your payment!</small></Box></Box>
+          <Box className="aura-info-grid aura-info-grid-single"><InfoBox title="FROM" icon={<ApartmentOutlined />}><strong>Aura Men Cab Service</strong><span><PhoneOutlined /> {form.driverContact || "Contact not added"}</span><span><DirectionsCarOutlined /> Vehicle: {form.vehicleNumber || "Not added"}</span><span><EmailOutlined /> theauramencabservice@gmail.com</span><span><LocationOnOutlined /> Service Available All Over Gujarat</span></InfoBox></Box>
+          <Box className="aura-bottom-grid aura-single-section"><Box className="aura-note-box"><Box className="aura-section-heading">NOTES</Box><p><CheckCircleOutlined /> Thank you for choosing Aura Men Cab Service.</p><p><CheckCircleOutlined /> We look forward to serving you again.</p><p><CheckCircleOutlined /> Drive Safe. Travel Safe.</p></Box></Box>
+          <Box className="aura-thanks-badge"><span>☆</span><strong>Thank You!</strong><small>FOR CHOOSING<br />US</small><b>★ ★ ★</b></Box>
           <Box className="aura-footer"><span><PhoneOutlined /> {form.driverContact || "9525911804"}</span><span>SAFE JOURNEY<br />OUR PRIORITY</span><strong>COMFORT | SAFETY | TRUST<br />Your Journey, Our Commitment</strong></Box>
         </Paper>
       </Box>
