@@ -15,12 +15,12 @@ The product is designed around a driver account. Saved driver details, invoices,
 
 ### Authentication and account management
 
-- Driver signup with name, email, password, and vehicle number.
-- Driver login using email and password.
-- Password hashing with `bcryptjs`.
-- Seven-day JWT access tokens containing `driverId` and `role: driver`.
+- Driver sign-in using IBM Cloud App ID.
+- First App ID sign-in creates a MongoDB driver record after the driver supplies a name and vehicle number.
+- The verified App ID subject is stored as the stable driver identity; later sign-ins load the same driver and invoices.
+- The API verifies App ID access and identity tokens against its OpenID discovery document and signing keys.
 - Account deletion with cascading deletion of the driver's profile, QR code, and invoices.
-- Client-side token and basic driver profile persistence in browser `localStorage`.
+- App ID tokens are held in browser `sessionStorage`; driver profiles and invoices persist in MongoDB.
 
 ### Invoice creation
 
@@ -108,7 +108,7 @@ Each driver can also manage a receipt logo:
 ```text
 Browser
   |
-  | React UI, JWT in localStorage, fetch requests
+  | React UI, App ID tokens in sessionStorage, fetch requests
   v
 Vite frontend (frontend/)
   |
@@ -135,7 +135,7 @@ The larger views are lazy-loaded so the initial application bundle does not eage
 - `InvoiceList.jsx`: invoice archive, detail dialog, and invoice actions.
 - `Dashboard.jsx`: KPIs and daily, weekly, and monthly charts.
 - `QrSettings.jsx`: account, QR, and logo settings.
-- `Login.jsx` and `Signup.jsx`: authentication screens.
+- `AppIdLogin.jsx`: App ID sign-in and first-time driver profile setup.
 - `SavedInvoiceModal.jsx`: post-save invoice confirmation/details.
 
 Material UI supplies the component system. `App.css` and `index.css` provide responsive layout, receipt styling, and global presentation.
@@ -152,7 +152,7 @@ PDF and image export libraries are loaded dynamically on the first export action
 
 Route ownership:
 
-- `routes/auth.js`: signup, login, and account deletion.
+- `routes/auth.js`: App ID session/account setup and account deletion.
 - `routes/invoice.js`: invoice CRUD, invoice PDF generation, and filtering.
 - `routes/reports.js`: aggregate totals and time-series earnings.
 - `routes/share.js`: compact share token and WhatsApp URL operations.
@@ -173,12 +173,13 @@ Reusable backend logic:
 |-- README.md
 |-- PROJECT_DOCUMENTATION.md
 |-- project_plan.txt
-|-- generateToken.cjs
+|-- Dockerfile
+|-- .dockerignore
 |-- vercel.json
 |-- backend/
 |   |-- index.js
-|   |-- generateToken.js
 |   |-- middleware/
+|   |   |-- appIdAuth.js
 |   |   `-- requireDriver.js
 |   |-- models/
 |   |   |-- Driver.js
@@ -223,7 +224,8 @@ Collection: `drivers`
 |---|---|---|
 | `driverName` | String | Required, trimmed |
 | `email` | String | Required, lowercase, unique |
-| `password` | String | Required, excluded from normal queries; stores a bcrypt hash |
+| `appIdSub` | String | Required for App ID accounts; sparse unique stable subject |
+| `password` | String | Optional legacy field; new accounts do not use passwords |
 | `vehicleNumber` | String | Required, uppercase, unique |
 | `createdAt`, `updatedAt` | Date | Mongoose timestamps |
 
@@ -288,11 +290,10 @@ Authorization: Bearer <driver-jwt>
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `POST` | `/auth/signup` | Public | Create a driver and initial profile |
-| `POST` | `/auth/login` | Public | Verify credentials and return a seven-day JWT |
+| `POST` | `/auth/session` | App ID | Find an existing driver or create a new driver/profile |
 | `DELETE` | `/auth/delete-account` | Driver | Delete account and owned data |
 
-Signup requires `driverName`, `email`, `password`, and `vehicleNumber`. Passwords must be at least six characters. Duplicate email and vehicle numbers return `409`.
+The first `/auth/session` request for a new App ID subject returns `setupRequired`. The frontend then submits `driverName` and `vehicleNumber` with the same verified tokens. Later sign-ins find the same driver using the App ID subject.
 
 ### Invoices
 
@@ -372,15 +373,17 @@ Example response shape:
 
 ## 7. Authentication and Data Isolation
 
-1. The user signs up or logs in through the frontend.
-2. The API returns a JWT containing the driver's identifier and driver role.
-3. The frontend stores the token under `easybill_driver_token` in `localStorage`.
+1. The user signs in through the IBM Cloud App ID JavaScript SDK.
+2. The frontend sends the access and identity tokens to the API.
+3. The API validates both tokens against App ID's configured OpenID issuer, audience, signing keys, and required `appid_default` scope.
 4. Authenticated requests send the token in the Bearer header.
-5. `requireDriver` verifies the token with `JWT_SECRET`.
-6. Route handlers use `request.user.driverId` for profile, QR, invoice, and report queries.
+5. `requireDriver` uses the verified App ID identity subject to load the driver's MongoDB account.
+6. Route handlers use the database driver's `_id` as `request.user.driverId` for profile, QR, invoice, and report queries.
 7. Invoice detail, PDF, delete, and share operations verify that the invoice belongs to the authenticated driver.
 
-The frontend should treat a missing, expired, or invalid token as a signed-out state. A token generated by `backend/generateToken.js` is useful for local profile/API testing, but normal application login tokens are issued by `/auth/login`.
+On first sign-in, the user provides a driver name and vehicle number, which are stored with the stable App ID subject. Later sign-ins reuse that account. App ID tokens are held in `sessionStorage` and cleared when the browser tab session ends.
+
+Existing password-based accounts are not linked or migrated. Their database records remain untouched and cannot sign in through the App ID flow.
 
 ## 8. Environment Configuration
 
@@ -390,7 +393,8 @@ Create `backend/.env` from the backend example file and provide:
 
 ```env
 MONGO_URI=<MongoDB Atlas connection string>
-JWT_SECRET=<long random signing secret>
+APPID_CLIENT_ID=<App ID SPA client ID>
+APPID_DISCOVERY_ENDPOINT=<App ID OpenID discovery endpoint>
 CLIENT_ORIGIN=http://localhost:5173
 NODE_ENV=development
 PORT=5000
@@ -404,7 +408,7 @@ The backend accepts `MONGO_URI` and maintains compatibility with `MONGODB_URI`. 
 CLIENT_ORIGIN=http://localhost:5173,https://your-frontend.example
 ```
 
-Never commit real MongoDB credentials, JWT secrets, or generated driver tokens.
+Never commit real MongoDB or Backblaze credentials. The App ID client ID and discovery endpoint are public SPA configuration; do not add an App ID client secret to the frontend.
 
 ### Frontend
 
@@ -413,6 +417,8 @@ Create `frontend/.env` for local development:
 ```env
 VITE_API_URL=http://localhost:5000
 VITE_PUBLIC_API_URL=http://localhost:5000
+VITE_APPID_CLIENT_ID=<App ID SPA client ID>
+VITE_APPID_DISCOVERY_ENDPOINT=<App ID OpenID discovery endpoint>
 ```
 
 The frontend resolves the API URL from `REACT_APP_API_URL`, then `VITE_API_URL`, then defaults to `http://localhost:5000`.
@@ -461,7 +467,6 @@ Available scripts:
 | `npm run build` | Build the frontend for production |
 | `npm run preview` | Preview the frontend build |
 | `npm run lint` | Run Oxlint against frontend and backend |
-| `npm run token -- driverId=123 role=driver` | Generate a 24-hour test JWT |
 | `npm run backfill:invoice-driver-ids` | Dry-run legacy invoice ownership backfill |
 | `npm run backfill:invoice-driver-ids -- --apply` | Apply the backfill |
 
@@ -469,25 +474,20 @@ Available scripts:
 
 ### Frontend
 
-`vercel.json` configures the Vercel build:
+Vercel builds the frontend from the repository root:
 
-- Install command: `npm ci`.
 - Build command: `npm run build`.
-- Output directory: `frontend/dist`.
-- Framework: Vite.
+- Publish directory: `frontend/dist`.
 
-Set `VITE_API_URL` and `VITE_PUBLIC_API_URL` to the deployed backend URL in the hosting provider's environment settings.
+Set `VITE_API_URL`, `VITE_PUBLIC_API_URL`, `VITE_APPID_CLIENT_ID`, and `VITE_APPID_DISCOVERY_ENDPOINT` in Vercel.
 
 ### Backend
 
-The backend can run as a Node service using:
+The root `Dockerfile` runs the backend on Render. Configure the Render service to use Docker and set `MONGO_URI`, `APPID_CLIENT_ID`, `APPID_DISCOVERY_ENDPOINT`, `CLIENT_ORIGIN`, `NODE_ENV`, and Backblaze B2 credentials in the hosting provider's environment settings.
 
-```text
-Build command: npm install
-Start command: npm run server
-```
+### Build, scan, and deploy
 
-Configure `MONGO_URI`, `JWT_SECRET`, `CLIENT_ORIGIN`, and `NODE_ENV` in the hosting provider. The current worktree does not contain the previously referenced `render.yaml`, so the hosting service settings should be verified directly in the deployment provider.
+`.github/workflows/build-scan-deploy.yml` runs frontend lint/build and Trivy scans the backend image for fixable high and critical vulnerabilities. Pull requests run checks without deploying. On a successful push to `main`, the workflow triggers Render and Vercel hooks. Disable automatic production Git deployments that would bypass these checks and add `RENDER_DEPLOY_HOOK` and `VERCEL_DEPLOY_HOOK` as GitHub Actions repository secrets.
 
 The API health endpoint is suitable for uptime monitoring. A keep-alive workflow may ping `/health` periodically when configured with a `BACKEND_URL` secret.
 
@@ -496,8 +496,8 @@ The API health endpoint is suitable for uptime monitoring. A keep-alive workflow
 - `x-powered-by` is disabled.
 - Responses include `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` headers.
 - CORS allows configured origins and rejects unlisted browser origins.
-- Passwords are never returned from normal driver queries.
-- Invoice ownership is derived from the verified JWT, not from a client-supplied driver ID.
+- The API validates App ID access and identity JWTs against the configured issuer, audience, signing keys, and scope.
+- Invoice ownership is derived from the verified App ID subject and MongoDB driver record, not from a client-supplied driver ID.
 - Share links are intentionally public to support passenger access. Treat a share token as a bearer credential.
 - QR and logo images are stored in Backblaze B2; MongoDB stores only their public object URLs.
 - Invoice TTL cleanup depends on MongoDB's TTL monitor and is not an immediate deletion guarantee at the exact expiration timestamp.
@@ -562,15 +562,15 @@ npm run lint
 Then verify the runtime manually:
 
 - `GET /health` returns `OK`.
-- Signup rejects missing or invalid fields.
-- Login returns a token for valid credentials.
+- App ID sign-in creates a driver/profile on first login and reuses that driver on later logins.
+- Requests with missing, invalid, or expired App ID tokens are rejected.
 - An unauthenticated invoice request returns `401`.
 - A saved invoice contains server-calculated totals and an expiration date.
 - A driver cannot read, delete, or share another driver's invoice.
 - Date filters include the complete `to` date.
 - Reports only include the authenticated driver's invoices.
 - QR and logo format and size limits are enforced.
-- Public share lookup returns a formatted invoice and does not require the driver JWT.
+- Public share lookup returns a formatted invoice and does not require driver authentication.
 - Frontend exports work in supported browsers and retain download fallbacks.
 
 ## 15. Future Improvements

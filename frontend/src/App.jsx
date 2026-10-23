@@ -53,8 +53,7 @@ import "./App.css";
 // the matching tab, never during the initial paint.
 const Dashboard = lazy(() => import("./components/Dashboard.jsx"));
 const InvoiceList = lazy(() => import("./components/InvoiceList.jsx"));
-const LoginPage = lazy(() => import("./components/Login.jsx"));
-const SignupPage = lazy(() => import("./components/Signup.jsx"));
+const AppIdLogin = lazy(() => import("./components/AppIdLogin.jsx"));
 const QrSettings = lazy(() => import("./components/QrSettings.jsx"));
 const NewBillView = lazy(() => import("./components/NewBill.jsx"));
 // The "Invoice saved" dialog only mounts after a save, so its code is kept out
@@ -72,6 +71,7 @@ const API_URL = trimTrailingSlash(
     "http://localhost:5000",
 );
 const AUTH_TOKEN_KEY = "easybill_driver_token";
+const AUTH_ID_TOKEN_KEY = "easybill_appid_id_token";
 const AUTH_DRIVER_KEY = "easybill_driver_profile";
 const initialForm = {
   passengerName: "",
@@ -97,11 +97,17 @@ const loadPdfLibs = async () => {
   ]);
   return { html2canvas, jsPDF };
 };
-const getStoredToken = () =>
-  typeof window === "undefined" ? "" : localStorage.getItem(AUTH_TOKEN_KEY) || "";
+const getStoredToken = () => {
+  if (typeof window === "undefined") return null;
+  const accessToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+  const idToken = sessionStorage.getItem(AUTH_ID_TOKEN_KEY);
+  return accessToken && idToken ? { accessToken, idToken } : null;
+};
 const driverHeaders = () => {
-  const token = getStoredToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const tokens = getStoredToken();
+  return tokens
+    ? { Authorization: `Bearer ${tokens.accessToken} ${tokens.idToken}` }
+    : {};
 };
 const upiQrMode = "UPI QR";
 const maxQrUploadSize = 2 * 1024 * 1024;
@@ -227,7 +233,6 @@ function App() {
       return nextMode;
     });
   };
-  const [authView, setAuthView] = useState("login");
   const [view, setView] = useState("new");
   const [form, setForm] = useState(initialForm);
   const [formResetVersion, setFormResetVersion] = useState(0);
@@ -283,21 +288,22 @@ function App() {
   const updateToken = useCallback((nextToken, driver) => {
     setToken(nextToken);
     if (typeof window === "undefined") return;
-    if (nextToken) {
-      localStorage.setItem(AUTH_TOKEN_KEY, nextToken);
+    if (nextToken?.accessToken && nextToken?.idToken) {
+      sessionStorage.setItem(AUTH_TOKEN_KEY, nextToken.accessToken);
+      sessionStorage.setItem(AUTH_ID_TOKEN_KEY, nextToken.idToken);
       if (driver) {
         localStorage.setItem(AUTH_DRIVER_KEY, JSON.stringify(driver));
         setDriverProfile(driver);
       }
     } else {
-      localStorage.removeItem(AUTH_TOKEN_KEY);
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
+      sessionStorage.removeItem(AUTH_ID_TOKEN_KEY);
       localStorage.removeItem(AUTH_DRIVER_KEY);
       setDriverProfile(null);
     }
   }, []);
   const logout = useCallback(() => {
     updateToken("", null);
-    setAuthView("login");
     setNotice("Logged out");
   }, [updateToken]);
   const deleteAccount = useCallback(async () => {
@@ -791,62 +797,16 @@ function App() {
     setNotice("PDF downloaded successfully");
   }, [exportImage, form.passengerName]);
 
-  const validateAuthForm = useCallback((mode, authForm) => {
-    const nextErrors = {};
-    if (mode === "signup" && !String(authForm.driverName || "").trim()) {
-      nextErrors.driverName = "Driver name is required";
-    }
-    if (!String(authForm.email || "").trim()) {
-      nextErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(authForm.email).trim())) {
-      nextErrors.email = "Enter a valid email";
-    }
-    if (!String(authForm.password || "")) {
-      nextErrors.password = "Password is required";
-    } else if (String(authForm.password).length < 6) {
-      nextErrors.password = "Password must be at least 6 characters";
-    }
-    if (mode === "signup" && !String(authForm.vehicleNumber || "").trim()) {
-      nextErrors.vehicleNumber = "Vehicle number is required";
-    }
-    return nextErrors;
-  }, []);
-
-  const handleAuth = useCallback(
-    async (mode, authForm, setErrors, setLoading) => {
-      const nextErrors = validateAuthForm(mode, authForm);
-      setErrors(nextErrors);
-      if (Object.keys(nextErrors).length > 0) return;
-      setLoading(true);
-      try {
-        const result = await fetch(`${API_URL}/auth/${mode}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(authForm),
-        });
-        const data = await result.json().catch(() => ({}));
-        if (!result.ok) throw new Error(data.error || "Authentication failed");
-        updateToken(data.token, data.driver);
-        setForm((current) => ({
-          ...current,
-          driverName: data.driver?.driverName || current.driverName,
-          vehicleNumber: data.driver?.vehicleNumber || current.vehicleNumber,
-        }));
-        setView("new");
-        setAuthView("login");
-        setNotice(data.message || (mode === "login" ? "Login successful" : "Signup successful"));
-      } catch (error) {
-        setNotice(
-          error.message === "Failed to fetch"
-            ? "Unable to reach the API. Start it with npm run server."
-            : error.message,
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [setForm, updateToken, validateAuthForm],
-  );
+  const handleAuthenticated = useCallback((tokens, driver) => {
+    updateToken(tokens, driver);
+    setForm((current) => ({
+      ...current,
+      driverName: driver?.driverName || current.driverName,
+      vehicleNumber: driver?.vehicleNumber || current.vehicleNumber,
+    }));
+    setView("new");
+    setNotice("Signed in with IBM Cloud App ID");
+  }, [updateToken]);
 
   if (!token) {
     return (
@@ -860,17 +820,7 @@ function App() {
                 </Box>
               }
             >
-              {authView === "login" ? (
-                <AuthLoginFlow
-                  onSubmit={handleAuth}
-                  onSwitchToSignup={() => setAuthView("signup")}
-                />
-              ) : (
-                <AuthSignupFlow
-                  onSubmit={handleAuth}
-                  onSwitchToLogin={() => setAuthView("login")}
-                />
-              )}
+              <AppIdLogin apiUrl={API_URL} onAuthenticated={handleAuthenticated} />
             </Suspense>
           </Container>
           <Snackbar
@@ -1437,54 +1387,5 @@ const Price = memo(function Price({ label, value, className = "" }) {
     </Stack>
   );
 });
-
-// ReceiptBrand, QrSettings, FilterBar, InvoiceList, InvoiceDialog,
-// Dashboard, and Metric now live in frontend/src/components/ — they are
-// code-split and only loaded with the views that need them.
-
-function AuthLoginFlow({ onSubmit, onSwitchToSignup }) {
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  return (
-    <LoginPage
-      form={form}
-      errors={errors}
-      loading={loading}
-      onChange={(field) => (event) =>
-        setForm((current) => ({ ...current, [field]: event.target.value }))}
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit("login", form, setErrors, setLoading);
-      }}
-      onSwitchToSignup={onSwitchToSignup}
-    />
-  );
-}
-
-function AuthSignupFlow({ onSubmit, onSwitchToLogin }) {
-  const [form, setForm] = useState({
-    driverName: "",
-    email: "",
-    password: "",
-    vehicleNumber: "",
-  });
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  return (
-    <SignupPage
-      form={form}
-      errors={errors}
-      loading={loading}
-      onChange={(field) => (event) =>
-        setForm((current) => ({ ...current, [field]: event.target.value }))}
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit("signup", form, setErrors, setLoading);
-      }}
-      onSwitchToLogin={onSwitchToLogin}
-    />
-  );
-}
 
 export default App;

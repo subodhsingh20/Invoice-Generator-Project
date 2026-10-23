@@ -1,20 +1,18 @@
 # Easy Bill
 
-Full-stack taxi bill generator with a React and Material UI frontend and an Express/MongoDB Atlas API.
+Easy Bill is a full-stack taxi bill generator. Drivers create invoices, manage saved driver and payment details, and review earnings.
 
 ## Stack
 
 - Frontend: React 19, Vite, Material UI, Chart.js, html2canvas, jsPDF
-- Backend: Node.js, Express 5, Mongoose, JSON Web Tokens, CORS
+- Backend: Node.js, Express 5, Mongoose
+- Authentication: IBM Cloud App ID (OpenID Connect)
 - Database: MongoDB Atlas
-- Hosting: Render for the backend, Netlify for the frontend
+- File storage: Backblaze B2
+- Hosting: Render for the backend, Vercel for the frontend
+- Image scanning and deployment: Trivy and GitHub Actions
 
-## Structure
-
-- `frontend/`: Vite React bill form, invoice archive, earnings dashboard, receipt preview, PDF/image export, and WhatsApp sharing.
-- `backend/`: Express routes, Mongoose invoice model, calculations, time-series reporting, profile storage, and TTL cleanup.
-
-## Local Setup
+## Local setup
 
 ```powershell
 npm install
@@ -22,134 +20,92 @@ Copy-Item backend/.env.example backend/.env
 Copy-Item frontend/.env.example frontend/.env
 ```
 
-Set these values in `backend/.env`:
+Create an IBM Cloud App ID service instance and a **Single Page Application (SPA)** client:
 
-- `MONGO_URI` - your MongoDB Atlas connection string
-- `JWT_SECRET` - a long random secret used to sign driver tokens
-- `CLIENT_ORIGIN` - `http://localhost:5173` for local development
-- `NODE_ENV` - `development`
+1. Enable the identity provider you want users to sign in with.
+2. Register the local frontend origin (`http://localhost:5173`) and the deployed Vercel origin/redirect URI in App ID.
+3. Copy the SPA client ID and discovery endpoint into both environment files. The client ID and discovery endpoint are public configuration; do not add an App ID client secret to the frontend.
 
-The backend reads `backend/.env`. It does not use a root-level `.env` file.
+Set `MONGO_URI`, `APPID_CLIENT_ID`, `APPID_DISCOVERY_ENDPOINT`, the Backblaze B2 settings, `CLIENT_ORIGIN=http://localhost:5173`, and `NODE_ENV=development` in `backend/.env`. For frontend development, set `VITE_API_URL=http://localhost:5000` and `VITE_PUBLIC_API_URL=http://localhost:5000` in `frontend/.env`, along with `VITE_APPID_CLIENT_ID` and `VITE_APPID_DISCOVERY_ENDPOINT`.
 
-For local frontend development, set `frontend/.env` like this:
+The backend reads `backend/.env`; the frontend reads `frontend/.env`.
 
-```env
-VITE_API_URL=http://localhost:5000
-VITE_PUBLIC_API_URL=http://localhost:5000
-```
-
-Then run:
+Run the frontend and API in separate terminals:
 
 ```powershell
 npm run dev
 npm run server
 ```
 
-The frontend runs on `http://localhost:5173` and the API runs on `http://localhost:5000`.
+The frontend runs at `http://localhost:5173` and the API at `http://localhost:5000`.
 
-## Production Deployment
+## How App ID sign-in works
+
+1. The React app uses IBM's App ID JavaScript SDK to start sign-in and receive an access token and identity token.
+2. The app sends both tokens to the API using `Authorization: Bearer <access-token> <identity-token>`.
+3. The API reads App ID's OpenID discovery document, verifies the tokens' signatures, issuer, audience, and required scope, then uses the verified identity subject (`sub`) to find the driver's MongoDB account.
+4. On first sign-in, the driver enters their name and vehicle number. Easy Bill saves the driver and profile in MongoDB with the App ID subject. Future sign-ins find that same record, so the driver's saved profile and invoices remain associated with the account.
+5. Tokens live in browser `sessionStorage` and are cleared when the tab session ends. The user's driver profile and invoices remain in MongoDB.
+
+Existing password-based accounts are not linked or migrated. They cannot sign in through the new flow; their existing database records are left untouched.
+
+The authentication endpoints are:
+
+- `POST /auth/session`: validate App ID tokens and find or create the driver's account/profile.
+- `DELETE /auth/delete-account`: delete the authenticated driver account and its related MongoDB records.
+
+All invoice, earnings, profile, and QR endpoints require valid App ID tokens.
+
+## Production deployment
 
 ### Render backend
 
-Use the repository root as the project source and set:
-
-- Build command: `npm install`
-- Start command: `npm run server`
-
-Set these Render environment variables:
+The repository now has a root `Dockerfile`. Configure the existing Render web service to use the Docker runtime and keep the repository root as its source. Set these environment variables in Render:
 
 ```env
 MONGO_URI=<your_mongo_connection_string>
-JWT_SECRET=<your_jwt_secret>
-CLIENT_ORIGIN=https://invoice-generator-auramen.netlify.app
+APPID_CLIENT_ID=<your_app_id_spa_client_id>
+APPID_DISCOVERY_ENDPOINT=<your_app_id_discovery_endpoint>
+CLIENT_ORIGIN=https://your-site.vercel.app
 NODE_ENV=production
+B2_ENDPOINT=<your_backblaze_endpoint>
+B2_REGION=<your_backblaze_region>
+B2_APPLICATION_KEY_ID=<your_backblaze_key_id>
+B2_APPLICATION_KEY=<your_backblaze_application_key>
+B2_BUCKET_NAME=<your_backblaze_bucket_name>
 ```
 
-If you want to allow local development and the deployed frontend at the same time, use:
+For local development and production together, set `CLIENT_ORIGIN` to the comma-separated origins `http://localhost:5173,https://your-site.vercel.app`. Keep database and Backblaze secrets in Render's environment settings, not in Git.
 
-```env
-CLIENT_ORIGIN=http://localhost:5173,https://invoice-generator-auramen.netlify.app
-```
+### Vercel frontend
 
-### Netlify frontend
-
-Use the repository root as the project source and set:
+Keep the existing repository-root build setup:
 
 - Build command: `npm run build`
 - Publish directory: `frontend/dist`
 
-Set these Netlify environment variables:
+Set `VITE_API_URL`, `VITE_PUBLIC_API_URL`, `VITE_APPID_CLIENT_ID`, and `VITE_APPID_DISCOVERY_ENDPOINT` in Vercel. Use the deployed Render URL for the API values; do not use `localhost` in production.
 
-```env
-VITE_API_URL=https://invoice-generator-project-p8s5.onrender.com
-VITE_PUBLIC_API_URL=https://invoice-generator-project-p8s5.onrender.com
-```
+### Build, scan, deploy workflow
 
-Do not use `localhost` in production frontend env values.
+`.github/workflows/build-scan-deploy.yml` runs lint and the frontend production build, builds the backend Docker image, and scans it with Trivy. Pull requests run the checks but do not deploy. A push to `main` deploys only after both build and image scan pass.
 
-## Health Check and Keep-Alive
+1. In Render, configure the backend service to deploy from the Dockerfile and turn off automatic Git-based deploys.
+2. In Vercel, prevent automatic Git deployments from deploying production changes before GitHub Actions passes.
+3. Create a Render deploy hook and a Vercel deploy hook for the production branch. Add them as repository Actions secrets named `RENDER_DEPLOY_HOOK` and `VERCEL_DEPLOY_HOOK`.
+4. Push to `main`. GitHub Actions triggers both hosts only after the frontend build and Trivy scan succeed.
 
-The backend exposes:
+The Trivy gate fails for fixable `HIGH` and `CRITICAL` image vulnerabilities. The workflow ignores vulnerabilities with no available fix; inspect scan output and update affected packages/base images as fixes become available.
 
-- `GET /health` - returns `200 OK`
+## Other repository workflows
 
-A GitHub Actions workflow pings the backend every 5 minutes to reduce Render sleep time:
-
-- Workflow file: [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml)
-- GitHub secret required: `BACKEND_URL`
-- Secret value: `https://invoice-generator-project-p8s5.onrender.com`
-
-## Generate a Driver JWT
-
-Driver authentication uses JWTs signed with `JWT_SECRET`.
-
-Generate a token with:
-
-```powershell
-npm run token -- driverId=123 role=driver
-```
-
-The returned token can be used in `Authorization: Bearer <token>` requests.
-
-## API
-
-- `POST /auth/signup`: create a driver account
-- `POST /auth/login`: sign in and receive a driver JWT
-- `DELETE /auth/delete-account`: delete the authenticated driver account and related data
-- `POST /invoice`: create and persist an invoice
-- `GET /invoice/:id`: fetch one invoice
-- `GET /invoice`: list invoices, newest first
-- `DELETE /invoice/:id`: delete an invoice
-- `GET /reports`: return invoice count, aggregate totals, and daily/weekly/monthly earnings series
-- `POST /share/:id`: create or reuse a compact share token for an invoice
-- `GET /share/:token`: fetch an invoice using its compact share token
-- `GET /health`: service health check
-- `GET /profile`: fetch the authenticated driver's saved name and vehicle
-- `POST /profile/save`: save or update the authenticated driver's name and vehicle
-- `DELETE /profile/clear`: clear the authenticated driver's saved profile
-
-Invoices receive an `expiresAt` value 60 days after creation and are removed by MongoDB's TTL index.
-
-## Driver Profile Behavior
-
-When a driver signs up, the backend also creates a saved driver profile. The create-ride-bill page uses that saved name and vehicle number by default, and the user can still edit them before saving a bill.
-
-Profile routes require `Authorization: Bearer <driver-jwt>`. Driver profiles are scoped to the JWT `driverId`, and vehicle numbers remain unique across profiles.
-
-## Backfill Old Invoices
-
-If you have older invoices with a missing `driverId`, run the backfill helper. It first performs a dry run and only writes changes when you pass `--apply`:
-
-```powershell
-npm run backfill:invoice-driver-ids
-npm run backfill:invoice-driver-ids -- --apply
-```
-
-The script matches invoices to drivers by exact `vehicleNumber`, which is the safest stable key already stored on the invoice.
+- `GET /health` is the backend health check.
+- `.github/workflows/keepalive.yml` pings the backend on a schedule. It uses the repository secret `BACKEND_URL`.
+- `npm run backfill:invoice-driver-ids` previews the old invoice backfill. Add `-- --apply` to perform the write.
 
 ## Validation
 
 ```powershell
-npm run build
 npm run lint
+npm run build
 ```
