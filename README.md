@@ -95,7 +95,7 @@ Set `VITE_API_URL`, `VITE_PUBLIC_API_URL`, `VITE_APPID_CLIENT_ID`, and `VITE_APP
 3. Create a Render deploy hook and a Vercel deploy hook for the production branch. Add them as repository Actions secrets named `RENDER_DEPLOY_HOOK` and `VERCEL_DEPLOY_HOOK`.
 4. Push to `main`. GitHub Actions triggers both hosts only after the frontend build and Trivy scan succeed.
 
-The Trivy gate fails for fixable `HIGH` and `CRITICAL` image vulnerabilities. The workflow ignores vulnerabilities with no available fix; inspect scan output and update affected packages/base images as fixes become available.
+The backend Docker image uses a multi-stage build with the current official `node:22-alpine` image, copies in production dependencies only, and removes npm because the running API does not need the package manager. The Trivy gate fails for fixable `HIGH` and `CRITICAL` image vulnerabilities. The workflow ignores vulnerabilities with no available fix; inspect scan output and update affected packages/base images as fixes become available.
 
 ## Other repository workflows
 
