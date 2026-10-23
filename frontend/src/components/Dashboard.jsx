@@ -1,4 +1,4 @@
-﻿import { memo, useState } from "react";
+import { memo, useState } from "react";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
@@ -48,7 +48,7 @@ ChartJS.register(
   Legend,
 );
 
-// Compact Indian-rupee labels for chart axes (â‚¹1.2k, â‚¹3.4L).
+// Compact Indian-rupee labels for chart axes (₹1.2k, ₹3.4L).
 const shortCurrency = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -407,7 +407,7 @@ async function exportHistory(format, items, tab, onNotice) {
     const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
     const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); link.download = "earning-history.csv"; link.click(); URL.revokeObjectURL(link.href); onNotice("CSV exported successfully"); return;
   }
-  const { jsPDF } = await import("jspdf"); const pdf = new jsPDF(); pdf.setFontSize(16); pdf.text("Aura Men Earning History", 14, 18); pdf.setFontSize(10); rows.forEach((row, index) => pdf.text(row.join(" | "), 14, 30 + index * 7)); pdf.save("earning-history.pdf"); onNotice("PDF exported successfully");
+  const { jsPDF } = await import("jspdf"); const pdf = new jsPDF(); pdf.setFontSize(16); pdf.text("Easy Bill Earning History", 14, 18); pdf.setFontSize(10); rows.forEach((row, index) => pdf.text(row.join(" | "), 14, 30 + index * 7)); pdf.save("earning-history.pdf"); onNotice("PDF exported successfully");
 }
 
 function ChartHeader({ title, summary }) {

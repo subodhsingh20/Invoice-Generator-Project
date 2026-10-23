@@ -550,7 +550,7 @@ function App() {
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({
-          title: "Aura Men Billing Service Portal",
+          title: "Easy Bill",
           files: [file],
         });
         setNotice("PDF shared successfully");
@@ -755,7 +755,7 @@ function App() {
     const text = buildShareText();
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Aura Men Billing Service Portal", text });
+        await navigator.share({ title: "Easy Bill", text });
         setNotice("Shared successfully");
         return;
       } catch (error) {
@@ -775,7 +775,7 @@ function App() {
     const file = new File([blob], `aura-men-bill-${form.passengerName || "receipt"}.pdf`, { type: "application/pdf" });
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({ title: "Aura Men Billing Service Portal", files: [file] });
+        await navigator.share({ title: "Easy Bill", files: [file] });
         setNotice("PDF shared successfully");
         return;
       } catch (error) {
@@ -849,9 +849,9 @@ function App() {
                 <Menu />
               </IconButton>
               <Box>
-                <Typography className="eyebrow">AURA MEN</Typography>
+                <Typography className="eyebrow">Easy Bill</Typography>
                 <Typography component="div" className="brand-name">
-                   Billing Service Portal
+                   Easy Bill
                 </Typography>
               </Box>
             </Stack>
@@ -891,7 +891,7 @@ function App() {
                 <Box>
                   <Typography className="drawer-kicker">SIGNED IN</Typography>
                   <Typography component="div" className="drawer-title">
-                    Aura Men Billing Service Portal
+                    Easy Bill
                   </Typography>
                   <Typography className="drawer-subtitle drawer-name">
                     {driverProfile?.driverName || "Driver account"}
@@ -1016,7 +1016,7 @@ function App() {
           </Suspense>
           <MobileBottomNav value={view} onChange={changeView} />
           <Typography className="footer-note">
-            Aura Men Billing Service Portal <span>•</span> Simple billing for the road
+            Easy Bill <span>•</span> Simple billing for the road
           </Typography>
           </Container>
         </Box>

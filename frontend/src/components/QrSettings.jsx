@@ -92,7 +92,7 @@ function QrSettings({
             ) : (
               <Box className="logo-preview default-logo-preview">
                 <ImageOutlined />
-                <Typography>Aura Men Billing Service Portal</Typography>
+                <Typography>Easy Bill</Typography>
               </Box>
             )}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>

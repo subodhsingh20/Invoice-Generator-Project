@@ -21,7 +21,7 @@ function ReceiptBrand({ logo, title, titleVariant = "h3" }) {
         </Box>
       )}
       <Box>
-        <Typography className="receipt-label">Aura Men Cab Service</Typography>
+        <Typography className="receipt-label">Easy Bill</Typography>
         <Typography variant={titleVariant} className="receipt-title">
           {title}
         </Typography>
