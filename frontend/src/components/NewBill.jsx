@@ -78,8 +78,17 @@ function NewBill({
   useEffect(() => {
     const current = getValues();
     const savedFields = ["passengerName", "passengerContact", "driverName", "driverContact", "vehicleNumber"];
-    if (savedFields.some((field) => (form[field] || "") !== (current[field] || ""))) reset({ ...current, ...form });
-  }, [form.passengerName, form.passengerContact, form.driverName, form.driverContact, form.vehicleNumber, getValues, reset]);
+    if (savedFields.some((field) => (form[field] || "") !== (current[field] || ""))) {
+      reset({
+        ...current,
+        passengerName: form.passengerName,
+        passengerContact: form.passengerContact,
+        driverName: form.driverName,
+        driverContact: form.driverContact,
+        vehicleNumber: form.vehicleNumber,
+      });
+    }
+  }, [form, getValues, reset]);
   useEffect(() => {
     if (draft && !form.passengerName && !form.pickup && !form.fare) {
       reset(draft);

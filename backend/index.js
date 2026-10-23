@@ -60,7 +60,7 @@ app.use((request, response) => {
   response.status(404).json({ error: 'Route not found' })
 })
 
-app.use((error, request, response, next) => {
+app.use((error, request, response, _next) => {
   if (error.type === 'entity.parse.failed') {
     return response.status(400).json({ error: 'Invalid JSON payload' })
   }
